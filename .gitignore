@@ -56,7 +56,7 @@ xcuserdata
 # VSCode
 .history/
 /vscode/launch.json
-
+.env
 # Android
 *.apk
 *.hprof
