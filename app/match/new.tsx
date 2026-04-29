@@ -1,14 +1,20 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, ActivityIndicator } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import {
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, ActivityIndicator,
+  Modal, Image, FlatList,
+} from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, Radius, Font, SurfaceColors, SURFACE_LABELS } from '../../constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, Spacing, Radius, Font } from '../../constants/theme';
 import { useMatchStore } from '../../stores/useMatchStore';
 import { usePlayerStore } from '../../stores/usePlayerStore';
+import { useProfileStore } from '../../stores/useProfileStore';
 import { SetScoreInput } from '../../components/SetScoreInput';
-import { Surface, MatchFormat, MatchSet } from '../../constants/types';
+import { SurfaceCard, getSurfaceTheme } from '../../components/SurfaceCard';
+import { Surface, MatchSet, Player, Profile } from '../../constants/types';
 
-const SURFACES: Surface[] = ['clay', 'hard', 'grass'];
+type Mode = 'singles' | 'doubles';
 
 function determineWinner(sets: MatchSet[], p1Id: string, p2Id: string): string | null {
   if (sets.length === 0) return null;
@@ -28,29 +34,61 @@ function determineWinner(sets: MatchSet[], p1Id: string, p2Id: string): string |
 
 export default function NewMatchScreen() {
   const { logMatch } = useMatchStore();
-  const { players, myPlayerId } = usePlayerStore();
+  const { players, myPlayerId, addPlayer } = usePlayerStore();
+  const nearby = useProfileStore(s => s.nearby);
+
+  const [mode, setMode] = useState<Mode>('singles');
   const [saving, setSaving] = useState(false);
+  const [pickerFor, setPickerFor] = useState<'p1' | 'p2' | null>(null);
 
   const [p1Id, setP1Id] = useState(myPlayerId ?? '');
   const [p2Id, setP2Id] = useState('');
   const [surface, setSurface] = useState<Surface>('hard');
   const [sets, setSets] = useState<MatchSet[]>([{ p1: 0, p2: 0 }]);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [time, setTime] = useState('');
+  const [location, setLocation] = useState('');
+  const [bannerUrl, setBannerUrl] = useState('');
   const [notes, setNotes] = useState('');
 
-  const availableP2 = players.filter(p => p.id !== p1Id);
   const p1 = players.find(p => p.id === p1Id);
   const p2 = players.find(p => p.id === p2Id);
 
   const winnerId = p1Id && p2Id ? determineWinner(sets, p1Id, p2Id) : null;
-
   const canSave = p1Id && p2Id && p1Id !== p2Id && sets.some(s => s.p1 > 0 || s.p2 > 0);
+  const theme = getSurfaceTheme(surface);
+
+  const handlePickPlayer = async (selected: { id: string; isProfile: boolean; name: string; handle?: string }) => {
+    let playerId = selected.id;
+
+    // Se selecionou um profile da plataforma, cria/usa player local espelho.
+    if (selected.isProfile) {
+      const existing = players.find(
+        p => p.name.toLowerCase() === selected.name.toLowerCase()
+          && (p.handle ?? '').toLowerCase() === (selected.handle ?? '').toLowerCase()
+      );
+      if (existing) {
+        playerId = existing.id;
+      } else {
+        const created = await addPlayer(selected.name, selected.handle);
+        if (!created) return;
+        playerId = created.id;
+      }
+    }
+
+    if (pickerFor === 'p1') setP1Id(playerId);
+    else if (pickerFor === 'p2') setP2Id(playerId);
+    setPickerFor(null);
+  };
 
   const handleSave = async () => {
     if (!canSave || saving) return;
     setSaving(true);
     const match = await logMatch({
       date,
+      scheduledTime: time.trim() || undefined,
+      location: location.trim() || undefined,
+      bannerUrl: bannerUrl.trim() || undefined,
       player1Id: p1Id,
       player2Id: p2Id,
       winnerId,
@@ -65,77 +103,70 @@ export default function NewMatchScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      {/* Player Selection */}
+      {/* Hero com gradient da superfície */}
+      <View style={styles.hero}>
+        <LinearGradient
+          colors={theme.gradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={styles.heroOverlay} />
+        <Text style={styles.heroSlam}>{theme.slam.toUpperCase()}</Text>
+        <Text style={styles.heroTitle}>{theme.label}</Text>
+      </View>
+
+      {/* Modo */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Modo</Text>
+        <View style={styles.modeRow}>
+          <TouchableOpacity
+            style={[styles.modeBtn, mode === 'singles' && styles.modeBtnActive]}
+            onPress={() => setMode('singles')}
+          >
+            <Ionicons name="person" size={18} color={mode === 'singles' ? Colors.bg : Colors.text} />
+            <Text style={[styles.modeLabel, mode === 'singles' && styles.modeLabelActive]}>Simples</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.modeBtn, styles.modeBtnDisabled]}
+            onPress={() => {}}
+            disabled
+          >
+            <Ionicons name="people" size={18} color={Colors.textTertiary} />
+            <Text style={[styles.modeLabel, { color: Colors.textTertiary }]}>Dupla</Text>
+            <View style={styles.soonBadge}><Text style={styles.soonText}>EM BREVE</Text></View>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Players */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Jogadores</Text>
-        <View style={styles.playerSelect}>
-          <View style={styles.playerCol}>
-            <Text style={styles.playerLabel}>Jogador 1</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.playerScroll}>
-              {players.map(p => (
-                <TouchableOpacity
-                  key={p.id}
-                  style={[styles.playerChip, p1Id === p.id && styles.playerChipActive]}
-                  onPress={() => setP1Id(p.id)}
-                >
-                  <View style={[styles.chipAvatar, { backgroundColor: p.avatarColor }]}>
-                    <Text style={styles.chipAvatarText}>{p.name[0]}</Text>
-                  </View>
-                  <Text style={[styles.chipName, p1Id === p.id && styles.chipNameActive]} numberOfLines={1}>
-                    {p.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-
-          <Text style={styles.vs}>VS</Text>
-
-          <View style={styles.playerCol}>
-            <Text style={styles.playerLabel}>Jogador 2</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.playerScroll}>
-              {availableP2.map(p => (
-                <TouchableOpacity
-                  key={p.id}
-                  style={[styles.playerChip, p2Id === p.id && styles.playerChipActive]}
-                  onPress={() => setP2Id(p.id)}
-                >
-                  <View style={[styles.chipAvatar, { backgroundColor: p.avatarColor }]}>
-                    <Text style={styles.chipAvatarText}>{p.name[0]}</Text>
-                  </View>
-                  <Text style={[styles.chipName, p2Id === p.id && styles.chipNameActive]} numberOfLines={1}>
-                    {p.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-              {availableP2.length === 0 && (
-                <TouchableOpacity style={styles.addPlayerBtn} onPress={() => router.push('/players')}>
-                  <Ionicons name="person-add-outline" size={20} color={Colors.textSecondary} />
-                  <Text style={styles.addPlayerText}>Adicionar</Text>
-                </TouchableOpacity>
-              )}
-            </ScrollView>
-          </View>
-        </View>
+        <PlayerSlot
+          label="Você"
+          player={p1}
+          onPress={() => setPickerFor('p1')}
+        />
+        <Text style={styles.vs}>VS</Text>
+        <PlayerSlot
+          label="Adversário"
+          player={p2}
+          onPress={() => setPickerFor('p2')}
+        />
       </View>
 
       {/* Surface */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Superfície</Text>
-        <View style={styles.surfaceRow}>
-          {SURFACES.map(s => {
-            const color = SurfaceColors[s];
-            return (
-              <TouchableOpacity
-                key={s}
-                style={[styles.surfaceBtn, surface === s && { borderColor: color, backgroundColor: color + '20' }]}
-                onPress={() => setSurface(s)}
-              >
-                <View style={[styles.surfaceDot, { backgroundColor: color }]} />
-                <Text style={[styles.surfaceLabel, surface === s && { color }]}>{SURFACE_LABELS[s]}</Text>
-              </TouchableOpacity>
-            );
-          })}
+        <View style={styles.surfaceList}>
+          {(['clay', 'hard', 'grass'] as const).map(s => (
+            <SurfaceCard
+              key={s}
+              surface={s}
+              selected={surface === s}
+              onPress={() => setSurface(s)}
+            />
+          ))}
         </View>
       </View>
 
@@ -143,10 +174,10 @@ export default function NewMatchScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Placar</Text>
         {p1 && p2 && (
-          <View style={styles.scoreHeader}>
-            <Text style={styles.scorePlayer}>{p1.name}</Text>
+          <View style={[styles.scoreHeader, { borderColor: theme.gradient[0] }]}>
+            <Text style={styles.scorePlayer} numberOfLines={1}>{p1.name}</Text>
             <Text style={styles.scoreDash}>×</Text>
-            <Text style={[styles.scorePlayer, styles.right]}>{p2.name}</Text>
+            <Text style={[styles.scorePlayer, styles.right]} numberOfLines={1}>{p2.name}</Text>
           </View>
         )}
         <SetScoreInput sets={sets} onChange={setSets} />
@@ -160,34 +191,74 @@ export default function NewMatchScreen() {
         )}
       </View>
 
-      {/* Date */}
+      {/* Quando + Onde */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Data</Text>
+        <Text style={styles.sectionTitle}>Quando</Text>
+        <View style={styles.row2}>
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={styles.fieldLabel}>Data</Text>
+            <TextInput
+              style={styles.input}
+              value={date}
+              onChangeText={setDate}
+              placeholder="AAAA-MM-DD"
+              placeholderTextColor={Colors.textTertiary}
+              keyboardType="numbers-and-punctuation"
+              maxLength={10}
+            />
+          </View>
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={styles.fieldLabel}>Horário</Text>
+            <TextInput
+              style={styles.input}
+              value={time}
+              onChangeText={setTime}
+              placeholder="HH:MM"
+              placeholderTextColor={Colors.textTertiary}
+              keyboardType="numbers-and-punctuation"
+              maxLength={5}
+            />
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Onde</Text>
         <TextInput
           style={styles.input}
-          value={date}
-          onChangeText={setDate}
-          placeholder="YYYY-MM-DD"
+          value={location}
+          onChangeText={setLocation}
+          placeholder="Clube, quadra, cidade…"
           placeholderTextColor={Colors.textTertiary}
-          keyboardType="numbers-and-punctuation"
         />
       </View>
 
-      {/* Notes */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Observações (opcional)</Text>
+        <Text style={styles.sectionTitle}>Banner (foto)</Text>
+        <TextInput
+          style={styles.input}
+          value={bannerUrl}
+          onChangeText={setBannerUrl}
+          placeholder="URL da foto da partida (opcional)"
+          placeholderTextColor={Colors.textTertiary}
+          autoCapitalize="none"
+          keyboardType="url"
+        />
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Sobre a partida</Text>
         <TextInput
           style={[styles.input, styles.textarea]}
           value={notes}
           onChangeText={setNotes}
-          placeholder="Notas da partida..."
+          placeholder="Como foi o jogo? Highlights, sentimentos, drama…"
           placeholderTextColor={Colors.textTertiary}
           multiline
-          numberOfLines={3}
+          numberOfLines={4}
         />
       </View>
 
-      {/* Save */}
       <TouchableOpacity
         style={[styles.saveBtn, (!canSave || saving) && styles.saveBtnDisabled]}
         onPress={handleSave}
@@ -199,52 +270,216 @@ export default function NewMatchScreen() {
       </TouchableOpacity>
 
       <View style={{ height: Spacing.xl }} />
+
+      <PlayerPickerModal
+        visible={!!pickerFor}
+        onClose={() => setPickerFor(null)}
+        roster={players}
+        nearby={nearby}
+        excludeId={pickerFor === 'p1' ? p2Id : p1Id}
+        onPick={handlePickPlayer}
+      />
     </ScrollView>
+  );
+}
+
+// ============== Player slot ==============
+
+function PlayerSlot({
+  label, player, onPress,
+}: { label: string; player?: Player; onPress: () => void }) {
+  return (
+    <TouchableOpacity style={styles.slot} onPress={onPress}>
+      {player ? (
+        <View style={[styles.slotAvatar, { backgroundColor: player.avatarColor }]}>
+          <Text style={styles.slotAvatarText}>{player.name[0]?.toUpperCase()}</Text>
+        </View>
+      ) : (
+        <View style={[styles.slotAvatar, styles.slotAvatarEmpty]}>
+          <Ionicons name="person-add" size={22} color={Colors.textSecondary} />
+        </View>
+      )}
+      <View style={{ flex: 1 }}>
+        <Text style={styles.slotLabel}>{label}</Text>
+        <Text style={styles.slotName} numberOfLines={1}>
+          {player?.name ?? 'Selecionar jogador'}
+        </Text>
+        {player?.handle && <Text style={styles.slotHandle}>@{player.handle}</Text>}
+      </View>
+      <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+    </TouchableOpacity>
+  );
+}
+
+// ============== Player picker modal ==============
+
+interface PickResult {
+  id: string;
+  isProfile: boolean;
+  name: string;
+  handle?: string;
+}
+
+function PlayerPickerModal({
+  visible, onClose, roster, nearby, excludeId, onPick,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  roster: Player[];
+  nearby: Profile[];
+  excludeId: string;
+  onPick: (r: PickResult) => void;
+}) {
+  const [q, setQ] = useState('');
+
+  // Combina roster + plataforma. Roster primeiro. Dedup por nome+handle.
+  const items = useMemo(() => {
+    const rosterKey = (n: string, h?: string) => `${n.toLowerCase()}|${(h ?? '').toLowerCase()}`;
+    const inRoster = new Set(roster.map(p => rosterKey(p.name, p.handle)));
+
+    const rosterItems: PickResult[] = roster
+      .filter(p => p.id !== excludeId)
+      .map(p => ({ id: p.id, isProfile: false, name: p.name, handle: p.handle }));
+
+    const profileItems: PickResult[] = nearby
+      .filter(p => !inRoster.has(rosterKey(p.name, p.handle)))
+      .map(p => ({ id: p.id, isProfile: true, name: p.name, handle: p.handle }));
+
+    return [...rosterItems, ...profileItems];
+  }, [roster, nearby, excludeId]);
+
+  const filtered = q.trim()
+    ? items.filter(i =>
+        i.name.toLowerCase().includes(q.toLowerCase())
+        || (i.handle ?? '').toLowerCase().includes(q.toLowerCase())
+      )
+    : items;
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalRoot}>
+        <View style={styles.modalSheet}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Selecionar jogador</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Ionicons name="close" size={24} color={Colors.text} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.searchBox}>
+            <Ionicons name="search" size={16} color={Colors.textSecondary} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Buscar por nome ou @handle…"
+              placeholderTextColor={Colors.textTertiary}
+              value={q}
+              onChangeText={setQ}
+              autoFocus
+            />
+          </View>
+
+          <FlatList
+            data={filtered}
+            keyExtractor={i => `${i.isProfile ? 'profile' : 'player'}-${i.id}`}
+            contentContainerStyle={{ paddingBottom: Spacing.xxl }}
+            ItemSeparatorComponent={() => <View style={styles.sep} />}
+            ListEmptyComponent={
+              <View style={styles.emptyPicker}>
+                <Ionicons name="search" size={32} color={Colors.textTertiary} />
+                <Text style={styles.emptyPickerText}>Nenhum jogador encontrado</Text>
+              </View>
+            }
+            renderItem={({ item }) => (
+              <TouchableOpacity style={styles.pickerRow} onPress={() => onPick(item)}>
+                <View style={[styles.pickerAvatar, { backgroundColor: Colors.accent }]}>
+                  <Text style={styles.pickerInitial}>{item.name[0]?.toUpperCase()}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.pickerName}>{item.name}</Text>
+                  {item.handle && <Text style={styles.pickerHandle}>@{item.handle}</Text>}
+                </View>
+                {item.isProfile ? (
+                  <View style={styles.platformBadge}>
+                    <Text style={styles.platformBadgeText}>PLATAFORMA</Text>
+                  </View>
+                ) : (
+                  <View style={styles.rosterBadge}>
+                    <Text style={styles.rosterBadgeText}>SEU</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      </View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  content: { gap: Spacing.lg, padding: Spacing.md },
-  section: { gap: Spacing.sm },
+  content: { gap: Spacing.lg, paddingBottom: Spacing.lg },
+
+  hero: {
+    height: 100, marginHorizontal: Spacing.md,
+    borderRadius: Radius.lg, overflow: 'hidden',
+    padding: Spacing.lg, justifyContent: 'flex-end',
+  },
+  heroOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: '#00000040' },
+  heroSlam: { fontSize: Font.xs, fontWeight: '900', color: '#FFFFFFCC', letterSpacing: 2 },
+  heroTitle: { fontSize: Font.xxl, fontWeight: '900', color: Colors.text, letterSpacing: -0.5 },
+
+  section: { gap: Spacing.sm, paddingHorizontal: Spacing.md },
   sectionTitle: {
     fontSize: Font.xs, fontWeight: '800', color: Colors.textSecondary,
     textTransform: 'uppercase', letterSpacing: 1,
   },
-  playerSelect: { gap: Spacing.md },
-  playerCol: { gap: Spacing.xs },
-  playerLabel: { fontSize: Font.xs, color: Colors.textTertiary, fontWeight: '600' },
-  playerScroll: { flexGrow: 0 },
-  playerChip: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.xs,
-    paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs,
-    backgroundColor: Colors.card, borderRadius: Radius.full,
-    marginRight: Spacing.xs, borderWidth: 2, borderColor: 'transparent',
+  fieldLabel: { fontSize: Font.xs, color: Colors.textTertiary, fontWeight: '600' },
+
+  modeRow: { flexDirection: 'row', gap: Spacing.sm },
+  modeBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: Colors.card, borderRadius: Radius.md,
+    padding: Spacing.md, borderWidth: 2, borderColor: Colors.border,
+    position: 'relative',
   },
-  playerChipActive: { borderColor: Colors.accent },
-  chipAvatar: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  chipAvatarText: { fontSize: Font.xs, fontWeight: '800', color: Colors.bg },
-  chipName: { fontSize: Font.sm, color: Colors.textSecondary, maxWidth: 100, fontWeight: '600' },
-  chipNameActive: { color: Colors.text },
-  vs: { fontSize: Font.xxl, fontWeight: '900', color: Colors.textTertiary, textAlign: 'center' },
-  addPlayerBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.xs,
-    padding: Spacing.sm, borderRadius: Radius.full,
-    backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderStyle: 'dashed',
+  modeBtnActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
+  modeBtnDisabled: { opacity: 0.6 },
+  modeLabel: { fontSize: Font.md, fontWeight: '800', color: Colors.text },
+  modeLabelActive: { color: Colors.bg },
+  soonBadge: {
+    position: 'absolute', top: -8, right: -4,
+    backgroundColor: Colors.orange, paddingHorizontal: 6, paddingVertical: 2,
+    borderRadius: Radius.full,
   },
-  addPlayerText: { fontSize: Font.sm, color: Colors.textSecondary },
-  surfaceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
-  surfaceBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.xs,
-    paddingHorizontal: Spacing.md, paddingVertical: 8,
-    backgroundColor: Colors.card, borderRadius: Radius.full,
-    borderWidth: 1.5, borderColor: Colors.border,
+  soonText: { fontSize: 9, fontWeight: '900', color: Colors.bg, letterSpacing: 0.5 },
+
+  slot: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
+    backgroundColor: Colors.card, borderRadius: Radius.md,
+    padding: Spacing.md,
   },
-  surfaceDot: { width: 8, height: 8, borderRadius: 4 },
-  surfaceLabel: { fontSize: Font.sm, color: Colors.textSecondary, fontWeight: '600' },
-  scoreHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: 4 },
-  scorePlayer: { flex: 1, fontSize: Font.sm, color: Colors.textSecondary, fontWeight: '700' },
-  scoreDash: { fontSize: Font.sm, color: Colors.textTertiary },
+  slotAvatar: {
+    width: 48, height: 48, borderRadius: 24,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  slotAvatarEmpty: { backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, borderStyle: 'dashed' },
+  slotAvatarText: { fontSize: Font.xl, fontWeight: '900', color: Colors.bg },
+  slotLabel: { fontSize: Font.xs, color: Colors.textSecondary, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
+  slotName: { fontSize: Font.md, fontWeight: '800', color: Colors.text },
+  slotHandle: { fontSize: Font.xs, color: Colors.textSecondary },
+  vs: { fontSize: Font.lg, fontWeight: '900', color: Colors.textTertiary, textAlign: 'center', letterSpacing: 2 },
+
+  surfaceList: { gap: Spacing.sm },
+
+  scoreHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md,
+    borderRadius: Radius.md, borderLeftWidth: 4,
+    backgroundColor: Colors.card,
+  },
+  scorePlayer: { flex: 1, fontSize: Font.md, color: Colors.text, fontWeight: '800' },
+  scoreDash: { fontSize: Font.md, color: Colors.textTertiary },
   right: { textAlign: 'right' },
   winnerBanner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs,
@@ -252,16 +487,56 @@ const styles = StyleSheet.create({
     padding: Spacing.sm,
   },
   winnerText: { fontSize: Font.md, fontWeight: '700', color: Colors.accent },
+
+  row2: { flexDirection: 'row', gap: Spacing.sm },
   input: {
     backgroundColor: Colors.card, borderRadius: Radius.md,
     padding: Spacing.md, color: Colors.text, fontSize: Font.md,
     borderWidth: 1, borderColor: Colors.border,
   },
-  textarea: { height: 80, textAlignVertical: 'top' },
+  textarea: { height: 100, textAlignVertical: 'top' },
+
   saveBtn: {
     backgroundColor: Colors.accent, borderRadius: Radius.full,
-    padding: Spacing.md, alignItems: 'center', marginTop: Spacing.sm,
+    padding: Spacing.md, alignItems: 'center',
+    marginHorizontal: Spacing.md, marginTop: Spacing.sm,
   },
   saveBtnDisabled: { opacity: 0.4 },
-  saveBtnText: { color: Colors.bg, fontWeight: '800', fontSize: Font.md, letterSpacing: 1 },
+  saveBtnText: { color: Colors.bg, fontWeight: '900', fontSize: Font.md, letterSpacing: 1.5 },
+
+  // Modal
+  modalRoot: { flex: 1, backgroundColor: '#000000A0', justifyContent: 'flex-end' },
+  modalSheet: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl,
+    paddingTop: Spacing.md,
+    height: '85%',
+  },
+  modalHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md,
+  },
+  modalTitle: { fontSize: Font.xl, fontWeight: '900', color: Colors.text },
+  searchBox: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: Colors.card, borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md, height: 44,
+    marginHorizontal: Spacing.lg, marginBottom: Spacing.md,
+  },
+  searchInput: { flex: 1, color: Colors.text, fontSize: Font.md },
+  sep: { height: 1, backgroundColor: Colors.border, marginHorizontal: Spacing.lg },
+  pickerRow: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
+    paddingVertical: Spacing.md, paddingHorizontal: Spacing.lg,
+  },
+  pickerAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  pickerInitial: { fontSize: Font.md, fontWeight: '900', color: Colors.bg },
+  pickerName: { fontSize: Font.md, fontWeight: '700', color: Colors.text },
+  pickerHandle: { fontSize: Font.sm, color: Colors.textSecondary },
+  platformBadge: { backgroundColor: Colors.blue + '30', paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full },
+  platformBadgeText: { fontSize: 10, fontWeight: '900', color: Colors.blue, letterSpacing: 0.5 },
+  rosterBadge: { backgroundColor: Colors.accent + '30', paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full },
+  rosterBadgeText: { fontSize: 10, fontWeight: '900', color: Colors.accent, letterSpacing: 0.5 },
+  emptyPicker: { alignItems: 'center', gap: Spacing.sm, padding: Spacing.xxl },
+  emptyPickerText: { fontSize: Font.sm, color: Colors.textSecondary },
 });

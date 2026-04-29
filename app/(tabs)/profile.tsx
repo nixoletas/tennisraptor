@@ -16,9 +16,9 @@ import { getProById } from '../../constants/pros';
 import { Profile } from '../../constants/types';
 
 type EditField =
-  | 'name' | 'avatar'
-  | 'social'
-  | 'region';
+  | 'identity' | 'avatar'
+  | 'preferences'
+  | 'social';
 
 export default function ProfileScreen() {
   const me = useProfileStore(s => s.me);
@@ -81,7 +81,7 @@ export default function ProfileScreen() {
             </View>
           )}
         </View>
-        <TouchableOpacity onPress={() => setEditing('name')} style={styles.editBtn}>
+        <TouchableOpacity onPress={() => setEditing('identity')} style={styles.editBtn}>
           <Ionicons name="pencil" size={16} color={Colors.textSecondary} />
         </TouchableOpacity>
       </View>
@@ -104,16 +104,29 @@ export default function ProfileScreen() {
         <View style={styles.attrCard}>
           <AttrRow label="Mão dominante" value={me.dominantHand && HAND_LABELS[me.dominantHand]} />
           <AttrRow label="Estilo" value={me.playStyle && PLAY_STYLE_LABELS[me.playStyle]} />
-          <AttrRow label="Quadra preferida" value={me.preferredEnvironment && ENVIRONMENT_LABELS[me.preferredEnvironment]} />
-          <AttrRow label="Superfície preferida" value={me.preferredSurface && SURFACE_LABELS[me.preferredSurface]} />
           <AttrRow label="Peso" value={me.weightKg ? `${me.weightKg} kg` : undefined} />
           <AttrRow label="Altura" value={me.heightCm ? `${me.heightCm} cm` : undefined} />
+          <AttrRow label="Nascimento" value={me.birthDate ? formatBirth(me.birthDate) : undefined} />
           <AttrRow
             label="Joga parecido com"
             value={pro?.name}
             valueColor={pro?.color}
             last
           />
+        </View>
+      </View>
+
+      {/* Preferências */}
+      <View style={styles.section}>
+        <View style={styles.socialHeader}>
+          <Text style={styles.sectionTitle}>Preferências</Text>
+          <TouchableOpacity onPress={() => setEditing('preferences')}>
+            <Text style={styles.editLink}>Editar</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.attrCard}>
+          <AttrRow label="Quadra preferida" value={me.preferredEnvironment && ENVIRONMENT_LABELS[me.preferredEnvironment]} />
+          <AttrRow label="Superfície preferida" value={me.preferredSurface && SURFACE_LABELS[me.preferredSurface]} last />
         </View>
       </View>
 
@@ -159,14 +172,20 @@ export default function ProfileScreen() {
       <View style={{ height: Spacing.xl }} />
 
       {/* Modais */}
-      <NameModal
-        visible={editing === 'name'}
+      <IdentityModal
+        visible={editing === 'identity'}
         me={me}
         onClose={() => setEditing(null)}
         onSave={async patch => { await updateMe(patch); setEditing(null); }}
       />
       <AvatarModal
         visible={editing === 'avatar'}
+        me={me}
+        onClose={() => setEditing(null)}
+        onSave={async patch => { await updateMe(patch); setEditing(null); }}
+      />
+      <PreferencesModal
+        visible={editing === 'preferences'}
         me={me}
         onClose={() => setEditing(null)}
         onSave={async patch => { await updateMe(patch); setEditing(null); }}
@@ -179,6 +198,13 @@ export default function ProfileScreen() {
       />
     </ScrollView>
   );
+}
+
+function formatBirth(s: string): string {
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return s;
+  const [_, y, mo, d] = m;
+  return `${d}/${mo}/${y}`;
 }
 
 // ===================== Subcomponents =====================
@@ -224,15 +250,21 @@ function SocialRow({
 
 // --- Modais ---
 
-function NameModal({
+function IdentityModal({
   visible, me, onClose, onSave,
 }: { visible: boolean; me: Profile; onClose: () => void; onSave: (p: Partial<Profile>) => Promise<void> }) {
   const [name, setName] = useState(me.name);
   const [handle, setHandle] = useState(me.handle ?? '');
+  const [birthDate, setBirthDate] = useState(me.birthDate ?? '');
 
   const handleSubmit = async () => {
     if (!name.trim()) return;
-    await onSave({ name: name.trim(), handle: handle.trim() || undefined });
+    const cleanHandle = handle.toLowerCase().replace(/[^a-z0-9_]/g, '').trim();
+    await onSave({
+      name: name.trim(),
+      handle: cleanHandle || undefined,
+      birthDate: birthDate.trim() || undefined,
+    });
   };
 
   return (
@@ -240,11 +272,92 @@ function NameModal({
       <View style={styles.modalOverlay}>
         <View style={styles.modal}>
           <Text style={styles.modalTitle}>Editar perfil</Text>
-          <TextInput style={styles.input} placeholder="Nome" placeholderTextColor={Colors.textTertiary}
-            value={name} onChangeText={setName} />
-          <TextInput style={styles.input} placeholder="@handle (opcional)" placeholderTextColor={Colors.textTertiary}
-            value={handle} onChangeText={setHandle} autoCapitalize="none" />
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Nome</Text>
+            <TextInput style={styles.input} placeholderTextColor={Colors.textTertiary}
+              value={name} onChangeText={setName} />
+          </View>
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>@ Handle</Text>
+            <TextInput style={styles.input} placeholder="seu_user" placeholderTextColor={Colors.textTertiary}
+              value={handle} onChangeText={t => setHandle(t.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+              autoCapitalize="none" maxLength={20} />
+          </View>
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Nascimento</Text>
+            <TextInput style={styles.input} placeholder="AAAA-MM-DD" placeholderTextColor={Colors.textTertiary}
+              value={birthDate} onChangeText={setBirthDate}
+              keyboardType="numbers-and-punctuation" maxLength={10} />
+          </View>
+
           <ModalActions onCancel={onClose} onConfirm={handleSubmit} />
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function PreferencesModal({
+  visible, me, onClose, onSave,
+}: { visible: boolean; me: Profile; onClose: () => void; onSave: (p: Partial<Profile>) => Promise<void> }) {
+  const [env, setEnv] = useState(me.preferredEnvironment);
+  const [surface, setSurface] = useState(me.preferredSurface);
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modal}>
+          <Text style={styles.modalTitle}>Preferências</Text>
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Quadra preferida</Text>
+            <View style={styles.prefRow}>
+              {(['outdoor', 'indoor'] as const).map(v => {
+                const sel = env === v;
+                return (
+                  <TouchableOpacity
+                    key={v}
+                    style={[styles.prefBtn, sel && styles.prefBtnActive]}
+                    onPress={() => setEnv(v)}
+                  >
+                    <Ionicons name={v === 'outdoor' ? 'sunny' : 'home'} size={18}
+                      color={sel ? Colors.bg : Colors.text} />
+                    <Text style={[styles.prefLabel, sel && styles.prefLabelActive]}>
+                      {ENVIRONMENT_LABELS[v]}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Superfície preferida</Text>
+            <View style={styles.prefRow}>
+              {(['clay', 'hard', 'grass'] as const).map(v => {
+                const sel = surface === v;
+                return (
+                  <TouchableOpacity
+                    key={v}
+                    style={[styles.prefBtn, sel && styles.prefBtnActive]}
+                    onPress={() => setSurface(v)}
+                  >
+                    <Text style={[styles.prefLabel, sel && styles.prefLabelActive]}>
+                      {SURFACE_LABELS[v]}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          <ModalActions
+            onCancel={onClose}
+            onConfirm={() => onSave({ preferredEnvironment: env, preferredSurface: surface })}
+          />
         </View>
       </View>
     </Modal>
@@ -421,6 +534,16 @@ const styles = StyleSheet.create({
   modalHint: { fontSize: Font.sm, color: Colors.textSecondary, marginTop: -Spacing.xs },
   fieldGroup: { gap: 4 },
   fieldLabel: { fontSize: Font.xs, color: Colors.textSecondary, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  prefRow: { flexDirection: 'row', gap: Spacing.xs, flexWrap: 'wrap' },
+  prefBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
+    backgroundColor: Colors.card, borderRadius: Radius.md,
+    borderWidth: 1, borderColor: Colors.border,
+  },
+  prefBtnActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
+  prefLabel: { fontSize: Font.sm, fontWeight: '700', color: Colors.text },
+  prefLabelActive: { color: Colors.bg },
   input: {
     backgroundColor: Colors.card, borderRadius: Radius.md,
     padding: Spacing.md, color: Colors.text, fontSize: Font.md,

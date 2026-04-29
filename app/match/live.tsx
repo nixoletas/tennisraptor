@@ -40,7 +40,7 @@ export default function LiveMatchScreen() {
           text: 'Finalizar',
           onPress: async () => {
             await finishLive();
-            router.replace('/(tabs)/history');
+            router.replace('/history');
           },
         },
       ]

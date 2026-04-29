@@ -15,6 +15,7 @@ export type ProfileRow = {
   handle: string | null;
   avatar_url: string | null;
   avatar_color: string | null;
+  birth_date: string | null;
   weight_kg: number | null;
   height_cm: number | null;
   dominant_hand: DominantHand | null;
@@ -45,6 +46,9 @@ export type MatchRow = {
   id: string;
   owner_id: string;
   date: string;
+  scheduled_time: string | null;
+  location: string | null;
+  banner_url: string | null;
   player1_id: string;
   player2_id: string;
   winner_id: string | null;
@@ -64,6 +68,7 @@ export function profileFromRow(r: ProfileRow): Profile {
     handle: r.handle ?? undefined,
     avatarUrl: r.avatar_url ?? undefined,
     avatarColor: r.avatar_color ?? undefined,
+    birthDate: r.birth_date ?? undefined,
     weightKg: r.weight_kg ?? undefined,
     heightCm: r.height_cm ?? undefined,
     dominantHand: r.dominant_hand ?? undefined,
@@ -94,6 +99,9 @@ export function matchFromRow(r: MatchRow): Match {
   return {
     id: r.id,
     date: r.date,
+    scheduledTime: r.scheduled_time ?? undefined,
+    location: r.location ?? undefined,
+    bannerUrl: r.banner_url ?? undefined,
     player1Id: r.player1_id,
     player2Id: r.player2_id,
     winnerId: r.winner_id,
@@ -113,6 +121,7 @@ export function profilePatchToRow(patch: Partial<Profile>): Record<string, unkno
   if (patch.handle !== undefined) r.handle = patch.handle ?? null;
   if (patch.avatarUrl !== undefined) r.avatar_url = patch.avatarUrl ?? null;
   if (patch.avatarColor !== undefined) r.avatar_color = patch.avatarColor ?? null;
+  if (patch.birthDate !== undefined) r.birth_date = patch.birthDate ?? null;
   if (patch.weightKg !== undefined) r.weight_kg = patch.weightKg ?? null;
   if (patch.heightCm !== undefined) r.height_cm = patch.heightCm ?? null;
   if (patch.dominantHand !== undefined) r.dominant_hand = patch.dominantHand ?? null;

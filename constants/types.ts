@@ -14,6 +14,9 @@ export interface MatchSet {
 export interface Match {
   id: string;
   date: string;
+  scheduledTime?: string;
+  location?: string;
+  bannerUrl?: string;
   player1Id: string;
   player2Id: string;
   winnerId: string | null;
@@ -42,6 +45,7 @@ export interface Profile {
   avatarUrl?: string;
   avatarColor?: string;
 
+  birthDate?: string;
   weightKg?: number;
   heightCm?: number;
   dominantHand?: DominantHand;

@@ -2,11 +2,28 @@ import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
+import { ThemeProvider, DarkTheme } from '@react-navigation/native';
 import { AuthProvider, useAuth } from '../lib/AuthContext';
 import { useHydrate } from '../lib/useHydrate';
 import { useProfileStore } from '../stores/useProfileStore';
+import { Colors } from '../constants/theme';
+
+// Dark theme custom — evita piscada branca em transições (default theme do
+// react-navigation tem bg branco, que vaza durante mount/unmount de telas).
+const NavTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: Colors.bg,
+    card: Colors.bg,
+    border: Colors.border,
+    primary: Colors.accent,
+    text: Colors.text,
+    notification: Colors.red,
+  },
+};
 
 SplashScreen.preventAutoHideAsync();
 
@@ -53,14 +70,15 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <StatusBar style="light" />
+      <ThemeProvider value={NavTheme}>
       <AuthProvider>
         <AuthGate>
           <Stack
             screenOptions={{
-              headerStyle: { backgroundColor: '#0D0D0D' },
-              headerTintColor: '#FFFFFF',
+              headerStyle: { backgroundColor: Colors.bg },
+              headerTintColor: Colors.text,
               headerShadowVisible: false,
-              contentStyle: { backgroundColor: '#0D0D0D' },
+              contentStyle: { backgroundColor: Colors.bg },
               animation: 'slide_from_right',
             }}
           >
@@ -76,10 +94,11 @@ export default function RootLayout() {
           </Stack>
         </AuthGate>
       </AuthProvider>
+      </ThemeProvider>
     </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  root: { flex: 1, backgroundColor: Colors.bg },
 });

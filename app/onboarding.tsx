@@ -1,47 +1,55 @@
 import React, { useMemo, useState } from 'react';
 import {
   View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView,
-  KeyboardAvoidingView, Platform, Image, FlatList, ActivityIndicator,
+  KeyboardAvoidingView, Platform, FlatList, ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import {
   Colors, Spacing, Radius, Font,
-  SURFACE_LABELS, ENVIRONMENT_LABELS, HAND_LABELS, PLAY_STYLE_LABELS,
+  HAND_LABELS, PLAY_STYLE_LABELS,
 } from '../constants/theme';
-import { PROS, ProPlayer } from '../constants/pros';
+import { PROS } from '../constants/pros';
 import {
-  DominantHand, PlayStyle, Environment, Surface, Profile,
+  DominantHand, PlayStyle, Profile,
 } from '../constants/types';
 import { useProfileStore } from '../stores/useProfileStore';
 import { usePlayerStore } from '../stores/usePlayerStore';
 import { useAuth } from '../lib/AuthContext';
+import { supabase } from '../lib/supabase';
 
 const BR_STATES = [
   'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG',
   'PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO',
 ];
 
-type StepId =
-  | 'avatar' | 'physique' | 'hand' | 'style'
-  | 'environment' | 'surface' | 'region' | 'pro';
-
-const STEPS: StepId[] = [
-  'avatar','physique','hand','style','environment','surface','region','pro',
-];
+type StepId = 'identity' | 'physique' | 'game' | 'region' | 'pro';
+const STEPS: StepId[] = ['identity', 'physique', 'game', 'region', 'pro'];
 
 interface Draft {
-  avatarUrl?: string;
+  handle?: string;
+  birthDate?: string;
   weightKg?: number;
   heightCm?: number;
   dominantHand?: DominantHand;
   playStyle?: PlayStyle;
-  preferredEnvironment?: Environment;
-  preferredSurface?: Surface;
   regionState?: string;
   regionCity?: string;
   similarProId?: string;
+}
+
+const HANDLE_RE = /^[a-z0-9_]{3,20}$/;
+
+function isValidBirthDate(s?: string): boolean {
+  if (!s) return false;
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return false;
+  const [_, y, mo, d] = m;
+  const dt = new Date(`${y}-${mo}-${d}T00:00:00Z`);
+  if (isNaN(dt.getTime())) return false;
+  const year = parseInt(y, 10);
+  return year >= 1920 && year <= new Date().getFullYear() - 5;
 }
 
 export default function OnboardingScreen() {
@@ -52,53 +60,76 @@ export default function OnboardingScreen() {
 
   const [stepIdx, setStepIdx] = useState(0);
   const [saving, setSaving] = useState(false);
-  const [draft, setDraft] = useState<Draft>({
-    avatarUrl: me?.avatarUrl,
-  });
+  const [handleErr, setHandleErr] = useState<string | null>(null);
+  const [checkingHandle, setCheckingHandle] = useState(false);
+  const [draft, setDraft] = useState<Draft>({});
 
   const step = STEPS[stepIdx];
   const progress = (stepIdx + 1) / STEPS.length;
+  const isLast = stepIdx === STEPS.length - 1;
 
   const canAdvance = useMemo(() => {
     switch (step) {
-      case 'avatar': return true;
-      case 'physique': return !!draft.weightKg && !!draft.heightCm;
-      case 'hand': return !!draft.dominantHand;
-      case 'style': return !!draft.playStyle;
-      case 'environment': return !!draft.preferredEnvironment;
-      case 'surface': return !!draft.preferredSurface;
-      case 'region': return !!draft.regionState && !!draft.regionCity?.trim();
-      case 'pro': return !!draft.similarProId;
+      case 'identity':
+        return !!draft.handle && HANDLE_RE.test(draft.handle) && isValidBirthDate(draft.birthDate);
+      case 'physique':
+        return !!draft.weightKg && !!draft.heightCm;
+      case 'game':
+        return !!draft.dominantHand && !!draft.playStyle;
+      case 'region':
+        return !!draft.regionState && !!draft.regionCity?.trim();
+      case 'pro':
+        return !!draft.similarProId;
     }
   }, [step, draft]);
 
-  const isLast = stepIdx === STEPS.length - 1;
+  const checkHandleAvailable = async (handle: string): Promise<boolean> => {
+    setCheckingHandle(true);
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id')
+      .ilike('handle', handle)
+      .neq('id', session!.user.id)
+      .limit(1);
+    setCheckingHandle(false);
+    if (error) {
+      console.error('[onboarding] check handle', error);
+      return true; // não bloqueia se checagem falhar
+    }
+    return (data?.length ?? 0) === 0;
+  };
 
   const handleNext = async () => {
     if (!canAdvance) return;
+
+    if (step === 'identity') {
+      const available = await checkHandleAvailable(draft.handle!);
+      if (!available) {
+        setHandleErr('Esse @ já está em uso.');
+        return;
+      }
+    }
+
     if (!isLast) {
       setStepIdx(i => i + 1);
       return;
     }
-    if (!session || !me) return;
 
+    if (!session || !me) return;
     setSaving(true);
     const patch: Partial<Profile> = {
-      avatarUrl: draft.avatarUrl,
+      handle: draft.handle,
+      birthDate: draft.birthDate,
       weightKg: draft.weightKg,
       heightCm: draft.heightCm,
       dominantHand: draft.dominantHand,
       playStyle: draft.playStyle,
-      preferredEnvironment: draft.preferredEnvironment,
-      preferredSurface: draft.preferredSurface,
       regionState: draft.regionState,
       regionCity: draft.regionCity?.trim(),
       similarProId: draft.similarProId,
     };
-
     const updated = await completeOnboarding(patch);
     if (updated) {
-      // Cria/atualiza o "me" player espelhando profile (pra histórico de partidas).
       await setupMe(session.user.id, updated.name, updated.handle);
     }
     setSaving(false);
@@ -113,7 +144,6 @@ export default function OnboardingScreen() {
   return (
     <View style={styles.root}>
       <LinearGradient colors={['#1A2400', Colors.bg, Colors.bg]} style={styles.gradient}>
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
             onPress={handleBack}
@@ -126,52 +156,38 @@ export default function OnboardingScreen() {
           <View style={{ width: 40 }} />
         </View>
 
-        {/* Progress bar */}
         <View style={styles.progressTrack}>
           <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
         </View>
 
-        {/* Step body */}
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-            {step === 'avatar' && (
-              <AvatarStep me={me} draft={draft} setDraft={setDraft} />
+            {step === 'identity' && (
+              <IdentityStep
+                draft={draft}
+                setDraft={setDraft}
+                handleErr={handleErr}
+                clearErr={() => setHandleErr(null)}
+                checking={checkingHandle}
+              />
             )}
-            {step === 'physique' && (
-              <PhysiqueStep draft={draft} setDraft={setDraft} />
-            )}
-            {step === 'hand' && (
-              <HandStep draft={draft} setDraft={setDraft} />
-            )}
-            {step === 'style' && (
-              <StyleStep draft={draft} setDraft={setDraft} />
-            )}
-            {step === 'environment' && (
-              <EnvironmentStep draft={draft} setDraft={setDraft} />
-            )}
-            {step === 'surface' && (
-              <SurfaceStep draft={draft} setDraft={setDraft} />
-            )}
-            {step === 'region' && (
-              <RegionStep draft={draft} setDraft={setDraft} />
-            )}
-            {step === 'pro' && (
-              <ProStep draft={draft} setDraft={setDraft} />
-            )}
+            {step === 'physique' && <PhysiqueStep draft={draft} setDraft={setDraft} />}
+            {step === 'game' && <GameStep draft={draft} setDraft={setDraft} />}
+            {step === 'region' && <RegionStep draft={draft} setDraft={setDraft} />}
+            {step === 'pro' && <ProStep draft={draft} setDraft={setDraft} />}
           </ScrollView>
         </KeyboardAvoidingView>
 
-        {/* Footer */}
         <View style={styles.footer}>
           <TouchableOpacity
-            style={[styles.nextBtn, (!canAdvance || saving) && styles.nextBtnDisabled]}
+            style={[styles.nextBtn, (!canAdvance || saving || checkingHandle) && styles.nextBtnDisabled]}
             onPress={handleNext}
-            disabled={!canAdvance || saving}
+            disabled={!canAdvance || saving || checkingHandle}
           >
-            {saving ? (
+            {saving || checkingHandle ? (
               <ActivityIndicator color={Colors.bg} />
             ) : (
               <>
@@ -190,7 +206,7 @@ export default function OnboardingScreen() {
   );
 }
 
-// ====================== STEPS ======================
+// ============== Steps ==============
 
 function StepHeader({ title, sub }: { title: string; sub?: string }) {
   return (
@@ -201,27 +217,68 @@ function StepHeader({ title, sub }: { title: string; sub?: string }) {
   );
 }
 
-function AvatarStep({
-  me, draft, setDraft,
-}: { me: Profile | null; draft: Draft; setDraft: React.Dispatch<React.SetStateAction<Draft>> }) {
-  const url = draft.avatarUrl ?? me?.avatarUrl;
-  const initial = (me?.name?.[0] ?? '?').toUpperCase();
+function IdentityStep({
+  draft, setDraft, handleErr, clearErr, checking,
+}: {
+  draft: Draft;
+  setDraft: React.Dispatch<React.SetStateAction<Draft>>;
+  handleErr: string | null;
+  clearErr: () => void;
+  checking: boolean;
+}) {
+  const handleValid = draft.handle ? HANDLE_RE.test(draft.handle) : null;
+  const dateValid = draft.birthDate ? isValidBirthDate(draft.birthDate) : null;
 
   return (
     <>
       <StepHeader
-        title="Sua foto"
-        sub={url ? 'Pegamos do Google. Pode trocar depois no Perfil.' : 'Vamos usar suas iniciais. Pode trocar depois no Perfil.'}
+        title="Sua identidade"
+        sub="@ pra ser mencionado em comentários, e nascimento pra estatísticas por idade."
       />
-      <View style={styles.avatarPreview}>
-        {url ? (
-          <Image source={{ uri: url }} style={styles.avatarImg} />
+
+      <View style={styles.fieldGroup}>
+        <Text style={styles.label}>@ Handle</Text>
+        <View style={styles.handleWrap}>
+          <Text style={styles.handlePrefix}>@</Text>
+          <TextInput
+            style={[styles.input, styles.handleInput]}
+            placeholder="seu_user"
+            placeholderTextColor={Colors.textTertiary}
+            value={draft.handle ?? ''}
+            onChangeText={t => {
+              clearErr();
+              setDraft(d => ({ ...d, handle: t.toLowerCase().replace(/[^a-z0-9_]/g, '') }));
+            }}
+            autoCapitalize="none"
+            autoCorrect={false}
+            maxLength={20}
+          />
+        </View>
+        {handleErr ? (
+          <Text style={styles.errorText}>{handleErr}</Text>
+        ) : handleValid === false ? (
+          <Text style={styles.hintText}>3-20 chars, letras/números/underscore.</Text>
+        ) : checking ? (
+          <Text style={styles.hintText}>Verificando…</Text>
         ) : (
-          <View style={[styles.avatarImg, { backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center' }]}>
-            <Text style={styles.avatarInitial}>{initial}</Text>
-          </View>
+          <Text style={styles.hintText}>Único na plataforma.</Text>
         )}
-        <Text style={styles.avatarName}>{me?.name ?? 'Jogador'}</Text>
+      </View>
+
+      <View style={styles.fieldGroup}>
+        <Text style={styles.label}>Data de nascimento</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="AAAA-MM-DD"
+          placeholderTextColor={Colors.textTertiary}
+          value={draft.birthDate ?? ''}
+          onChangeText={t => setDraft(d => ({ ...d, birthDate: t }))}
+          keyboardType="numbers-and-punctuation"
+          maxLength={10}
+        />
+        {draft.birthDate && dateValid === false && (
+          <Text style={styles.errorText}>Formato AAAA-MM-DD. Idade mínima: 5 anos.</Text>
+        )}
       </View>
     </>
   );
@@ -267,93 +324,68 @@ function PhysiqueStep({
   );
 }
 
-function HandStep({
+function GameStep({
   draft, setDraft,
 }: { draft: Draft; setDraft: React.Dispatch<React.SetStateAction<Draft>> }) {
-  const opts: DominantHand[] = ['right', 'left'];
-  return (
-    <>
-      <StepHeader title="Mão dominante" />
-      <View style={styles.optionList}>
-        {opts.map(h => (
-          <Option
-            key={h}
-            label={HAND_LABELS[h]}
-            selected={draft.dominantHand === h}
-            onPress={() => setDraft(d => ({ ...d, dominantHand: h }))}
-            icon={h === 'left' ? 'hand-left' : 'hand-right'}
-          />
-        ))}
-      </View>
-    </>
-  );
-}
-
-function StyleStep({
-  draft, setDraft,
-}: { draft: Draft; setDraft: React.Dispatch<React.SetStateAction<Draft>> }) {
-  const opts: { v: PlayStyle; sub: string }[] = [
+  const hands: DominantHand[] = ['right', 'left'];
+  const styles_: { v: PlayStyle; sub: string }[] = [
     { v: 'serve_volley', sub: 'Saca e sobe à rede' },
     { v: 'offensive',    sub: 'Bate forte da fundação' },
     { v: 'all_court',    sub: 'Versátil, joga tudo' },
     { v: 'defensive',    sub: 'Devolve tudo, espera o erro' },
   ];
-  return (
-    <>
-      <StepHeader title="Estilo de jogo" />
-      <View style={styles.optionList}>
-        {opts.map(o => (
-          <Option
-            key={o.v}
-            label={PLAY_STYLE_LABELS[o.v]}
-            sub={o.sub}
-            selected={draft.playStyle === o.v}
-            onPress={() => setDraft(d => ({ ...d, playStyle: o.v }))}
-          />
-        ))}
-      </View>
-    </>
-  );
-}
 
-function EnvironmentStep({
-  draft, setDraft,
-}: { draft: Draft; setDraft: React.Dispatch<React.SetStateAction<Draft>> }) {
-  const opts: Environment[] = ['outdoor', 'indoor'];
   return (
     <>
-      <StepHeader title="Quadra preferida" sub="Onde você prefere jogar." />
-      <View style={styles.optionList}>
-        {opts.map(e => (
-          <Option
-            key={e}
-            label={ENVIRONMENT_LABELS[e]}
-            selected={draft.preferredEnvironment === e}
-            onPress={() => setDraft(d => ({ ...d, preferredEnvironment: e }))}
-            icon={e === 'outdoor' ? 'sunny' : 'home'}
-          />
-        ))}
-      </View>
-    </>
-  );
-}
+      <StepHeader title="Seu jogo" />
 
-function SurfaceStep({
-  draft, setDraft,
-}: { draft: Draft; setDraft: React.Dispatch<React.SetStateAction<Draft>> }) {
-  const opts: Surface[] = ['clay', 'hard', 'grass'];
-  return (
-    <>
-      <StepHeader title="Superfície preferida" />
-      <View style={styles.optionList}>
-        {opts.map(s => (
-          <Option
-            key={s}
-            label={SURFACE_LABELS[s]}
-            selected={draft.preferredSurface === s}
-            onPress={() => setDraft(d => ({ ...d, preferredSurface: s }))}
-          />
-        ))}
+      <View style={styles.fieldGroup}>
+        <Text style={styles.label}>Mão dominante</Text>
+        <View style={styles.handRow}>
+          {hands.map(h => {
+            const sel = draft.dominantHand === h;
+            return (
+              <TouchableOpacity
+                key={h}
+                style={[styles.handBtn, sel && styles.handBtnActive]}
+                onPress={() => setDraft(d => ({ ...d, dominantHand: h }))}
+              >
+                <Ionicons
+                  name={h === 'left' ? 'hand-left' : 'hand-right'}
+                  size={28}
+                  color={sel ? Colors.bg : Colors.text}
+                />
+                <Text style={[styles.handLabel, sel && styles.handLabelActive]}>
+                  {HAND_LABELS[h]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
+      <View style={styles.fieldGroup}>
+        <Text style={styles.label}>Estilo de jogo</Text>
+        <View style={styles.optionList}>
+          {styles_.map(o => {
+            const sel = draft.playStyle === o.v;
+            return (
+              <TouchableOpacity
+                key={o.v}
+                style={[styles.option, sel && styles.optionActive]}
+                onPress={() => setDraft(d => ({ ...d, playStyle: o.v }))}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.optionLabel, sel && styles.optionLabelActive]}>
+                    {PLAY_STYLE_LABELS[o.v]}
+                  </Text>
+                  <Text style={[styles.optionSub, sel && styles.optionSubActive]}>{o.sub}</Text>
+                </View>
+                {sel && <Ionicons name="checkmark-circle" size={22} color={Colors.bg} />}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
     </>
   );
@@ -448,29 +480,8 @@ function ProStep({
   );
 }
 
-function Option({
-  label, sub, selected, onPress, icon,
-}: {
-  label: string; sub?: string; selected: boolean;
-  onPress: () => void; icon?: keyof typeof Ionicons.glyphMap;
-}) {
-  return (
-    <TouchableOpacity
-      style={[styles.option, selected && styles.optionActive]}
-      onPress={onPress}
-    >
-      {icon && <Ionicons name={icon} size={22} color={selected ? Colors.bg : Colors.text} />}
-      <View style={{ flex: 1 }}>
-        <Text style={[styles.optionLabel, selected && styles.optionLabelActive]}>{label}</Text>
-        {sub && <Text style={[styles.optionSub, selected && styles.optionSubActive]}>{sub}</Text>}
-      </View>
-      {selected && <Ionicons name="checkmark-circle" size={22} color={Colors.bg} />}
-    </TouchableOpacity>
-  );
-}
-
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  root: { flex: 1, backgroundColor: Colors.bg },
   gradient: { flex: 1 },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -493,11 +504,6 @@ const styles = StyleSheet.create({
   stepTitle: { fontSize: Font.xxl, fontWeight: '900', color: Colors.text, letterSpacing: -0.5 },
   stepSub: { fontSize: Font.md, color: Colors.textSecondary },
 
-  avatarPreview: { alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.lg },
-  avatarImg: { width: 140, height: 140, borderRadius: 70 },
-  avatarInitial: { fontSize: 64, fontWeight: '900', color: Colors.bg },
-  avatarName: { fontSize: Font.xl, fontWeight: '800', color: Colors.text },
-
   fieldGroup: { gap: Spacing.xs },
   label: { fontSize: Font.xs, fontWeight: '700', color: Colors.textSecondary, letterSpacing: 0.5, textTransform: 'uppercase' },
   input: {
@@ -505,6 +511,27 @@ const styles = StyleSheet.create({
     padding: Spacing.md, color: Colors.text, fontSize: Font.lg,
     borderWidth: 1, borderColor: Colors.border,
   },
+  hintText: { fontSize: Font.xs, color: Colors.textTertiary },
+  errorText: { fontSize: Font.xs, color: Colors.red, fontWeight: '600' },
+
+  handleWrap: { position: 'relative' },
+  handlePrefix: {
+    position: 'absolute', left: Spacing.md, top: 0, bottom: 0,
+    fontSize: Font.lg, fontWeight: '900', color: Colors.textSecondary,
+    textAlignVertical: 'center', includeFontPadding: false,
+    height: '100%', lineHeight: 50,
+  },
+  handleInput: { paddingLeft: 36 },
+
+  handRow: { flexDirection: 'row', gap: Spacing.sm },
+  handBtn: {
+    flex: 1, alignItems: 'center', gap: Spacing.xs,
+    backgroundColor: Colors.card, borderRadius: Radius.md,
+    paddingVertical: Spacing.md, borderWidth: 2, borderColor: Colors.border,
+  },
+  handBtnActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
+  handLabel: { fontSize: Font.sm, fontWeight: '800', color: Colors.text },
+  handLabelActive: { color: Colors.bg },
 
   optionList: { gap: Spacing.sm },
   option: {
