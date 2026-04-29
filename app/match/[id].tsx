@@ -1,15 +1,24 @@
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Image } from 'react-native';
 import { useLocalSearchParams, router, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius, Font, SurfaceColors, SURFACE_LABELS } from '../../constants/theme';
 import { useMatchStore } from '../../stores/useMatchStore';
-import { usePlayerStore } from '../../stores/usePlayerStore';
+import { useProfileStore } from '../../stores/useProfileStore';
+import { Profile } from '../../constants/types';
 
 export default function MatchDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { matches, deleteMatch } = useMatchStore();
-  const { players } = usePlayerStore();
+  const me = useProfileStore(s => s.me);
+  const nearby = useProfileStore(s => s.nearby);
+
+  const profilesMap = useMemo(() => {
+    const m = new Map<string, Profile>();
+    if (me) m.set(me.id, me);
+    for (const p of nearby) m.set(p.id, p);
+    return m;
+  }, [me, nearby]);
 
   const match = matches.find(m => m.id === id);
   if (!match) {
@@ -20,9 +29,8 @@ export default function MatchDetailScreen() {
     );
   }
 
-  const p1 = players.find(p => p.id === match.player1Id);
-  const p2 = players.find(p => p.id === match.player2Id);
-  const winner = players.find(p => p.id === match.winnerId);
+  const p1 = profilesMap.get(match.player1Id);
+  const p2 = profilesMap.get(match.player2Id);
   const surfaceColor = SurfaceColors[match.surface] ?? Colors.textSecondary;
 
   const handleDelete = () => {
@@ -66,9 +74,13 @@ export default function MatchDetailScreen() {
         {/* Score Card */}
         <View style={styles.scoreCard}>
           <View style={styles.playerRow}>
-            <View style={[styles.avatar, { backgroundColor: p1?.avatarColor ?? Colors.card }]}>
-              <Text style={styles.avatarText}>{p1?.name?.[0] ?? '?'}</Text>
-            </View>
+            {p1?.avatarUrl ? (
+              <Image source={{ uri: p1.avatarUrl }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, { backgroundColor: p1?.avatarColor ?? Colors.card, alignItems: 'center', justifyContent: 'center' }]}>
+                <Text style={styles.avatarText}>{p1?.name?.[0] ?? '?'}</Text>
+              </View>
+            )}
             <Text style={[styles.playerName, match.winnerId === match.player1Id && styles.playerNameWinner]}>
               {p1?.name ?? 'Jogador 1'}
             </Text>
@@ -92,9 +104,13 @@ export default function MatchDetailScreen() {
           </View>
 
           <View style={styles.playerRow}>
-            <View style={[styles.avatar, { backgroundColor: p2?.avatarColor ?? Colors.card }]}>
-              <Text style={styles.avatarText}>{p2?.name?.[0] ?? '?'}</Text>
-            </View>
+            {p2?.avatarUrl ? (
+              <Image source={{ uri: p2.avatarUrl }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, { backgroundColor: p2?.avatarColor ?? Colors.card, alignItems: 'center', justifyContent: 'center' }]}>
+                <Text style={styles.avatarText}>{p2?.name?.[0] ?? '?'}</Text>
+              </View>
+            )}
             <Text style={[styles.playerName, match.winnerId === match.player2Id && styles.playerNameWinner]}>
               {p2?.name ?? 'Jogador 2'}
             </Text>

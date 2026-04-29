@@ -1,25 +1,36 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius, Font, SURFACE_LABELS } from '../constants/theme';
 import { useMatchStore } from '../stores/useMatchStore';
-import { usePlayerStore } from '../stores/usePlayerStore';
+import { useProfileStore } from '../stores/useProfileStore';
 import { MatchCard } from '../components/MatchCard';
-import { Surface } from '../constants/types';
+import { Surface, Profile } from '../constants/types';
 
 const SURFACES: (Surface | 'all')[] = ['all', 'clay', 'hard', 'grass'];
 const LABELS: Record<string, string> = { all: 'Todas', ...SURFACE_LABELS };
 
 export default function HistoryScreen() {
   const { matches, liveMatch } = useMatchStore();
-  const { players, myPlayerId } = usePlayerStore();
+  const me = useProfileStore(s => s.me);
+  const nearby = useProfileStore(s => s.nearby);
   const [surface, setSurface] = useState<Surface | 'all'>('all');
   const [showMine, setShowMine] = useState(false);
 
+  const myId = me?.id ?? null;
+  const profilesMap = useMemo(() => {
+    const m = new Map<string, Profile>();
+    if (me) m.set(me.id, me);
+    for (const p of nearby) m.set(p.id, p);
+    return m;
+  }, [me, nearby]);
+
+  // Por default mostra só confirmed. Pending/rejected ficam fora do histórico.
   const filtered = matches
+    .filter(m => m.status === 'confirmed')
     .filter(m => surface === 'all' || m.surface === surface)
-    .filter(m => !showMine || m.player1Id === myPlayerId || m.player2Id === myPlayerId);
+    .filter(m => !showMine || m.player1Id === myId || m.player2Id === myId);
 
   return (
     <View style={styles.container}>
@@ -46,7 +57,7 @@ export default function HistoryScreen() {
             </Text>
           </TouchableOpacity>
         ))}
-        {myPlayerId && (
+        {myId && (
           <TouchableOpacity
             style={[styles.chip, showMine && styles.chipActive]}
             onPress={() => setShowMine(v => !v)}
@@ -70,7 +81,7 @@ export default function HistoryScreen() {
           <>
             <Text style={styles.count}>{filtered.length} partida{filtered.length !== 1 ? 's' : ''}</Text>
             {filtered.map(m => (
-              <MatchCard key={m.id} match={m} players={players} myPlayerId={myPlayerId} />
+              <MatchCard key={m.id} match={m} profiles={profilesMap} myId={myId} />
             ))}
           </>
         )}

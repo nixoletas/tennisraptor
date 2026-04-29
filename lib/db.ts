@@ -1,6 +1,6 @@
 import * as Crypto from 'expo-crypto';
 import {
-  Match, Player, Profile, MatchSet, Surface, MatchFormat,
+  Match, Profile, MatchSet, Surface, MatchFormat, MatchStatus,
   DominantHand, PlayStyle, Environment,
 } from '../constants/types';
 
@@ -32,16 +32,6 @@ export type ProfileRow = {
   updated_at: string;
 };
 
-export type PlayerRow = {
-  id: string;
-  owner_id: string;
-  name: string;
-  handle: string | null;
-  avatar_color: string;
-  is_me: boolean;
-  created_at: string;
-};
-
 export type MatchRow = {
   id: string;
   owner_id: string;
@@ -55,6 +45,9 @@ export type MatchRow = {
   sets: MatchSet[];
   surface: Surface;
   format: MatchFormat;
+  status: MatchStatus;
+  confirmed_at: string | null;
+  rejected_at: string | null;
   notes: string | null;
   duration_minutes: number | null;
   created_at: string;
@@ -84,17 +77,6 @@ export function profileFromRow(r: ProfileRow): Profile {
   };
 }
 
-export function playerFromRow(r: PlayerRow): Player {
-  return {
-    id: r.id,
-    name: r.name,
-    handle: r.handle ?? undefined,
-    avatarColor: r.avatar_color,
-    isMe: r.is_me,
-    createdAt: r.created_at,
-  };
-}
-
 export function matchFromRow(r: MatchRow): Match {
   return {
     id: r.id,
@@ -108,6 +90,9 @@ export function matchFromRow(r: MatchRow): Match {
     sets: r.sets ?? [],
     surface: r.surface,
     format: r.format,
+    status: r.status,
+    confirmedAt: r.confirmed_at ?? undefined,
+    rejectedAt: r.rejected_at ?? undefined,
     notes: r.notes ?? undefined,
     duration: r.duration_minutes ?? undefined,
     createdAt: r.created_at,

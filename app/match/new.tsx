@@ -8,11 +8,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Radius, Font } from '../../constants/theme';
 import { useMatchStore } from '../../stores/useMatchStore';
-import { usePlayerStore } from '../../stores/usePlayerStore';
 import { useProfileStore } from '../../stores/useProfileStore';
 import { SetScoreInput } from '../../components/SetScoreInput';
 import { SurfaceCard, getSurfaceTheme } from '../../components/SurfaceCard';
-import { Surface, MatchSet, Player, Profile } from '../../constants/types';
+import { Surface, MatchSet, Profile } from '../../constants/types';
 
 type Mode = 'singles' | 'doubles';
 
@@ -34,14 +33,21 @@ function determineWinner(sets: MatchSet[], p1Id: string, p2Id: string): string |
 
 export default function NewMatchScreen() {
   const { logMatch } = useMatchStore();
-  const { players, myPlayerId, addPlayer } = usePlayerStore();
+  const me = useProfileStore(s => s.me);
   const nearby = useProfileStore(s => s.nearby);
+
+  const profilesMap = useMemo(() => {
+    const m = new Map<string, Profile>();
+    if (me) m.set(me.id, me);
+    for (const p of nearby) m.set(p.id, p);
+    return m;
+  }, [me, nearby]);
 
   const [mode, setMode] = useState<Mode>('singles');
   const [saving, setSaving] = useState(false);
   const [pickerFor, setPickerFor] = useState<'p1' | 'p2' | null>(null);
 
-  const [p1Id, setP1Id] = useState(myPlayerId ?? '');
+  const [p1Id, setP1Id] = useState(me?.id ?? '');
   const [p2Id, setP2Id] = useState('');
   const [surface, setSurface] = useState<Surface>('hard');
   const [sets, setSets] = useState<MatchSet[]>([{ p1: 0, p2: 0 }]);
@@ -51,33 +57,16 @@ export default function NewMatchScreen() {
   const [bannerUrl, setBannerUrl] = useState('');
   const [notes, setNotes] = useState('');
 
-  const p1 = players.find(p => p.id === p1Id);
-  const p2 = players.find(p => p.id === p2Id);
+  const p1 = profilesMap.get(p1Id);
+  const p2 = profilesMap.get(p2Id);
 
   const winnerId = p1Id && p2Id ? determineWinner(sets, p1Id, p2Id) : null;
   const canSave = p1Id && p2Id && p1Id !== p2Id && sets.some(s => s.p1 > 0 || s.p2 > 0);
   const theme = getSurfaceTheme(surface);
 
-  const handlePickPlayer = async (selected: { id: string; isProfile: boolean; name: string; handle?: string }) => {
-    let playerId = selected.id;
-
-    // Se selecionou um profile da plataforma, cria/usa player local espelho.
-    if (selected.isProfile) {
-      const existing = players.find(
-        p => p.name.toLowerCase() === selected.name.toLowerCase()
-          && (p.handle ?? '').toLowerCase() === (selected.handle ?? '').toLowerCase()
-      );
-      if (existing) {
-        playerId = existing.id;
-      } else {
-        const created = await addPlayer(selected.name, selected.handle);
-        if (!created) return;
-        playerId = created.id;
-      }
-    }
-
-    if (pickerFor === 'p1') setP1Id(playerId);
-    else if (pickerFor === 'p2') setP2Id(playerId);
+  const handlePickProfile = (profile: Profile) => {
+    if (pickerFor === 'p1') setP1Id(profile.id);
+    else if (pickerFor === 'p2') setP2Id(profile.id);
     setPickerFor(null);
   };
 
@@ -144,13 +133,13 @@ export default function NewMatchScreen() {
         <Text style={styles.sectionTitle}>Jogadores</Text>
         <PlayerSlot
           label="Você"
-          player={p1}
+          profile={p1}
           onPress={() => setPickerFor('p1')}
         />
         <Text style={styles.vs}>VS</Text>
         <PlayerSlot
           label="Adversário"
-          player={p2}
+          profile={p2}
           onPress={() => setPickerFor('p2')}
         />
       </View>
@@ -185,7 +174,7 @@ export default function NewMatchScreen() {
           <View style={styles.winnerBanner}>
             <Ionicons name="trophy" size={16} color={Colors.accent} />
             <Text style={styles.winnerText}>
-              {players.find(p => p.id === winnerId)?.name} venceu
+              {profilesMap.get(winnerId)?.name} venceu
             </Text>
           </View>
         )}
@@ -271,13 +260,13 @@ export default function NewMatchScreen() {
 
       <View style={{ height: Spacing.xl }} />
 
-      <PlayerPickerModal
+      <ProfilePickerModal
         visible={!!pickerFor}
         onClose={() => setPickerFor(null)}
-        roster={players}
+        me={me}
         nearby={nearby}
         excludeId={pickerFor === 'p1' ? p2Id : p1Id}
-        onPick={handlePickPlayer}
+        onPick={handlePickProfile}
       />
     </ScrollView>
   );
@@ -286,14 +275,18 @@ export default function NewMatchScreen() {
 // ============== Player slot ==============
 
 function PlayerSlot({
-  label, player, onPress,
-}: { label: string; player?: Player; onPress: () => void }) {
+  label, profile, onPress,
+}: { label: string; profile?: Profile; onPress: () => void }) {
   return (
     <TouchableOpacity style={styles.slot} onPress={onPress}>
-      {player ? (
-        <View style={[styles.slotAvatar, { backgroundColor: player.avatarColor }]}>
-          <Text style={styles.slotAvatarText}>{player.name[0]?.toUpperCase()}</Text>
-        </View>
+      {profile ? (
+        profile.avatarUrl ? (
+          <Image source={{ uri: profile.avatarUrl }} style={styles.slotAvatar} />
+        ) : (
+          <View style={[styles.slotAvatar, { backgroundColor: profile.avatarColor ?? Colors.accent, alignItems: 'center', justifyContent: 'center' }]}>
+            <Text style={styles.slotAvatarText}>{profile.name[0]?.toUpperCase()}</Text>
+          </View>
+        )
       ) : (
         <View style={[styles.slotAvatar, styles.slotAvatarEmpty]}>
           <Ionicons name="person-add" size={22} color={Colors.textSecondary} />
@@ -302,58 +295,42 @@ function PlayerSlot({
       <View style={{ flex: 1 }}>
         <Text style={styles.slotLabel}>{label}</Text>
         <Text style={styles.slotName} numberOfLines={1}>
-          {player?.name ?? 'Selecionar jogador'}
+          {profile?.name ?? 'Selecionar jogador'}
         </Text>
-        {player?.handle && <Text style={styles.slotHandle}>@{player.handle}</Text>}
+        {profile?.handle && <Text style={styles.slotHandle}>@{profile.handle}</Text>}
       </View>
       <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
     </TouchableOpacity>
   );
 }
 
-// ============== Player picker modal ==============
+// ============== Profile picker modal ==============
 
-interface PickResult {
-  id: string;
-  isProfile: boolean;
-  name: string;
-  handle?: string;
-}
-
-function PlayerPickerModal({
-  visible, onClose, roster, nearby, excludeId, onPick,
+function ProfilePickerModal({
+  visible, onClose, me, nearby, excludeId, onPick,
 }: {
   visible: boolean;
   onClose: () => void;
-  roster: Player[];
+  me: Profile | null;
   nearby: Profile[];
   excludeId: string;
-  onPick: (r: PickResult) => void;
+  onPick: (p: Profile) => void;
 }) {
   const [q, setQ] = useState('');
 
-  // Combina roster + plataforma. Roster primeiro. Dedup por nome+handle.
-  const items = useMemo(() => {
-    const rosterKey = (n: string, h?: string) => `${n.toLowerCase()}|${(h ?? '').toLowerCase()}`;
-    const inRoster = new Set(roster.map(p => rosterKey(p.name, p.handle)));
-
-    const rosterItems: PickResult[] = roster
-      .filter(p => p.id !== excludeId)
-      .map(p => ({ id: p.id, isProfile: false, name: p.name, handle: p.handle }));
-
-    const profileItems: PickResult[] = nearby
-      .filter(p => !inRoster.has(rosterKey(p.name, p.handle)))
-      .map(p => ({ id: p.id, isProfile: true, name: p.name, handle: p.handle }));
-
-    return [...rosterItems, ...profileItems];
-  }, [roster, nearby, excludeId]);
+  const all = useMemo(() => {
+    const list: Profile[] = [];
+    if (me) list.push(me);
+    list.push(...nearby);
+    return list.filter(p => p.id !== excludeId);
+  }, [me, nearby, excludeId]);
 
   const filtered = q.trim()
-    ? items.filter(i =>
-        i.name.toLowerCase().includes(q.toLowerCase())
-        || (i.handle ?? '').toLowerCase().includes(q.toLowerCase())
+    ? all.filter(p =>
+        p.name.toLowerCase().includes(q.toLowerCase())
+        || (p.handle ?? '').toLowerCase().includes(q.toLowerCase())
       )
-    : items;
+    : all;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -380,7 +357,7 @@ function PlayerPickerModal({
 
           <FlatList
             data={filtered}
-            keyExtractor={i => `${i.isProfile ? 'profile' : 'player'}-${i.id}`}
+            keyExtractor={p => p.id}
             contentContainerStyle={{ paddingBottom: Spacing.xxl }}
             ItemSeparatorComponent={() => <View style={styles.sep} />}
             ListEmptyComponent={
@@ -389,26 +366,29 @@ function PlayerPickerModal({
                 <Text style={styles.emptyPickerText}>Nenhum jogador encontrado</Text>
               </View>
             }
-            renderItem={({ item }) => (
-              <TouchableOpacity style={styles.pickerRow} onPress={() => onPick(item)}>
-                <View style={[styles.pickerAvatar, { backgroundColor: Colors.accent }]}>
-                  <Text style={styles.pickerInitial}>{item.name[0]?.toUpperCase()}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.pickerName}>{item.name}</Text>
-                  {item.handle && <Text style={styles.pickerHandle}>@{item.handle}</Text>}
-                </View>
-                {item.isProfile ? (
-                  <View style={styles.platformBadge}>
-                    <Text style={styles.platformBadgeText}>PLATAFORMA</Text>
+            renderItem={({ item }) => {
+              const isMe = me?.id === item.id;
+              return (
+                <TouchableOpacity style={styles.pickerRow} onPress={() => onPick(item)}>
+                  {item.avatarUrl ? (
+                    <Image source={{ uri: item.avatarUrl }} style={styles.pickerAvatar} />
+                  ) : (
+                    <View style={[styles.pickerAvatar, { backgroundColor: item.avatarColor ?? Colors.accent, alignItems: 'center', justifyContent: 'center' }]}>
+                      <Text style={styles.pickerInitial}>{item.name[0]?.toUpperCase()}</Text>
+                    </View>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.pickerName}>{item.name}</Text>
+                    {item.handle && <Text style={styles.pickerHandle}>@{item.handle}</Text>}
                   </View>
-                ) : (
-                  <View style={styles.rosterBadge}>
-                    <Text style={styles.rosterBadgeText}>SEU</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            )}
+                  {isMe && (
+                    <View style={styles.rosterBadge}>
+                      <Text style={styles.rosterBadgeText}>EU</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            }}
           />
         </View>
       </View>

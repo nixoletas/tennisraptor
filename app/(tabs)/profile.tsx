@@ -8,7 +8,6 @@ import {
   SURFACE_LABELS, ENVIRONMENT_LABELS, HAND_LABELS, PLAY_STYLE_LABELS,
 } from '../../constants/theme';
 import { useProfileStore } from '../../stores/useProfileStore';
-import { usePlayerStore } from '../../stores/usePlayerStore';
 import { useMatchStore } from '../../stores/useMatchStore';
 import { StatCard } from '../../components/StatCard';
 import { useAuth } from '../../lib/AuthContext';
@@ -23,13 +22,12 @@ type EditField =
 export default function ProfileScreen() {
   const me = useProfileStore(s => s.me);
   const updateMe = useProfileStore(s => s.updateMe);
-  const { myPlayerId } = usePlayerStore();
   const { getPlayerStats } = useMatchStore();
   const { user, signOut } = useAuth();
 
   const [editing, setEditing] = useState<EditField | null>(null);
 
-  const stats = myPlayerId ? getPlayerStats(myPlayerId) : null;
+  const stats = me?.id ? getPlayerStats(me.id) : null;
   const pro = getProById(me?.similarProId);
 
   if (!me) {

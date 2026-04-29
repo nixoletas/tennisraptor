@@ -23,9 +23,11 @@ interface MatchStore {
   loadAll: (userId: string) => Promise<void>;
   reset: () => void;
 
-  logMatch: (data: Omit<Match, 'id' | 'createdAt'>) => Promise<Match | null>;
+  logMatch: (data: Omit<Match, 'id' | 'createdAt' | 'status'>) => Promise<Match | null>;
   deleteMatch: (id: string) => Promise<void>;
   updateMatch: (id: string, updates: Partial<Match>) => Promise<void>;
+  approveMatch: (id: string) => Promise<void>;
+  rejectMatch: (id: string) => Promise<void>;
 
   startLive: (p1Id: string, p2Id: string, surface: Surface, format: MatchFormat) => void;
   awardGame: (winnerId: string) => void;
@@ -33,6 +35,7 @@ interface MatchStore {
   finishLive: () => Promise<Match | null>;
   cancelLive: () => void;
 
+  getPendingForMe: (myId: string) => Match[];
   getPlayerMatches: (playerId: string) => Match[];
   getPlayerStats: (playerId: string) => {
     wins: number; losses: number;
@@ -48,10 +51,11 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
   loaded: false,
 
   loadAll: async (userId) => {
+    // RLS já filtra: owner OU P1 OU P2. Pega todas que o user vê.
     const { data, error } = await supabase
       .from('matches')
       .select('*')
-      .eq('owner_id', userId)
+      .or(`owner_id.eq.${userId},player1_id.eq.${userId},player2_id.eq.${userId}`)
       .order('date', { ascending: false })
       .order('created_at', { ascending: false });
 
@@ -69,9 +73,15 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
     const userId = (await supabase.auth.getUser()).data.user?.id;
     if (!userId) return null;
 
+    // Auto-confirm se o owner é o próprio P2 (caso raro: user registra match
+    // onde ele mesmo é o adversário). Default = pending pra approval flow.
+    const autoConfirmed = userId === data.player2Id;
+
     const match: Match = {
       ...data,
       id: newId(),
+      status: autoConfirmed ? 'confirmed' : 'pending',
+      confirmedAt: autoConfirmed ? new Date().toISOString() : undefined,
       createdAt: new Date().toISOString(),
     };
 
@@ -79,12 +89,17 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
       id: match.id,
       owner_id: userId,
       date: match.date,
+      scheduled_time: match.scheduledTime ?? null,
+      location: match.location ?? null,
+      banner_url: match.bannerUrl ?? null,
       player1_id: match.player1Id,
       player2_id: match.player2Id,
       winner_id: match.winnerId,
       sets: match.sets,
       surface: match.surface,
       format: match.format,
+      status: match.status,
+      confirmed_at: match.confirmedAt ?? null,
       notes: match.notes ?? null,
       duration_minutes: match.duration ?? null,
     });
@@ -96,6 +111,40 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
 
     set(s => ({ matches: [match, ...s.matches] }));
     return match;
+  },
+
+  approveMatch: async (id) => {
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from('matches')
+      .update({ status: 'confirmed', confirmed_at: now })
+      .eq('id', id);
+    if (error) {
+      console.error('[matches] approveMatch', error);
+      return;
+    }
+    set(s => ({
+      matches: s.matches.map(m => m.id === id
+        ? { ...m, status: 'confirmed', confirmedAt: now }
+        : m),
+    }));
+  },
+
+  rejectMatch: async (id) => {
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from('matches')
+      .update({ status: 'rejected', rejected_at: now })
+      .eq('id', id);
+    if (error) {
+      console.error('[matches] rejectMatch', error);
+      return;
+    }
+    set(s => ({
+      matches: s.matches.map(m => m.id === id
+        ? { ...m, status: 'rejected', rejectedAt: now }
+        : m),
+    }));
   },
 
   deleteMatch: async (id) => {
@@ -257,6 +306,9 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
     const userId = (await supabase.auth.getUser()).data.user?.id;
     if (!userId) return null;
 
+    const autoConfirmed = userId === live.player2Id;
+    const now = new Date().toISOString();
+
     const match: Match = {
       id: live.matchId,
       date: live.startedAt.split('T')[0],
@@ -266,7 +318,9 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
       sets: live.sets,
       surface: live.surface,
       format: live.format,
-      createdAt: new Date().toISOString(),
+      status: autoConfirmed ? 'confirmed' : 'pending',
+      confirmedAt: autoConfirmed ? now : undefined,
+      createdAt: now,
       duration: Math.round((Date.now() - new Date(live.startedAt).getTime()) / 60000),
     };
 
@@ -280,6 +334,8 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
       sets: match.sets,
       surface: match.surface,
       format: match.format,
+      status: match.status,
+      confirmed_at: match.confirmedAt ?? null,
       duration_minutes: match.duration,
     });
 
@@ -296,9 +352,17 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
     set({ liveMatch: null });
   },
 
+  getPendingForMe: (myId) => {
+    return get().matches.filter(
+      m => m.player2Id === myId && m.status === 'pending'
+    );
+  },
+
+  // Só matches confirmed contam pra histórico/stats (gym-rats: precisa do OK do P2).
   getPlayerMatches: (playerId) => {
     return get().matches.filter(
-      m => m.player1Id === playerId || m.player2Id === playerId
+      m => m.status === 'confirmed'
+        && (m.player1Id === playerId || m.player2Id === playerId)
     );
   },
 

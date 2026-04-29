@@ -1,25 +1,35 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useLocalSearchParams, router, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius, Font } from '../../constants/theme';
-import { usePlayerStore } from '../../stores/usePlayerStore';
+import { useProfileStore } from '../../stores/useProfileStore';
 import { useMatchStore } from '../../stores/useMatchStore';
 import { MatchCard } from '../../components/MatchCard';
 import { H2HBar } from '../../components/H2HBar';
 import { StatCard } from '../../components/StatCard';
+import { Profile } from '../../constants/types';
+import { computeH2H } from '../../lib/h2h';
 
 export default function PlayerDetailScreen() {
   const { id, vs } = useLocalSearchParams<{ id: string; vs?: string }>();
-  const { players, getH2H, removePlayer } = usePlayerStore();
+  const me = useProfileStore(s => s.me);
+  const nearby = useProfileStore(s => s.nearby);
   const { matches, getPlayerStats } = useMatchStore();
 
-  const player = players.find(p => p.id === id);
-  const vsPlayer = vs ? players.find(p => p.id === vs) : null;
-  const opponents = players.filter(p => p.id !== id);
+  const allProfiles = useMemo(() => {
+    const list: Profile[] = [];
+    if (me) list.push(me);
+    list.push(...nearby);
+    return list;
+  }, [me, nearby]);
+  const profilesMap = useMemo(() => new Map(allProfiles.map(p => [p.id, p])), [allProfiles]);
+
+  const player = profilesMap.get(id);
+  const opponents = allProfiles.filter(p => p.id !== id);
 
   const [selectedVs, setSelectedVs] = useState<string | null>(vs ?? null);
-  const vsP = selectedVs ? players.find(p => p.id === selectedVs) : null;
+  const vsP = selectedVs ? profilesMap.get(selectedVs) : null;
 
   if (!player) {
     return (
@@ -30,17 +40,7 @@ export default function PlayerDetailScreen() {
   }
 
   const stats = getPlayerStats(player.id);
-  const h2h = selectedVs ? getH2H(player.id, selectedVs, matches) : null;
-
-  const handleDelete = () => {
-    Alert.alert('Remover Jogador', `Remover ${player.name}?`, [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Remover', style: 'destructive',
-        onPress: () => { removePlayer(id); router.back(); },
-      },
-    ]);
-  };
+  const h2h = selectedVs ? computeH2H(player.id, selectedVs, matches) : null;
 
   const playerMatches = matches
     .filter(m => m.player1Id === player.id || m.player2Id === player.id)
@@ -50,28 +50,28 @@ export default function PlayerDetailScreen() {
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          title: player.name,
-          headerRight: () => (
-            <TouchableOpacity onPress={handleDelete}>
-              <Ionicons name="trash-outline" size={22} color={Colors.red} />
-            </TouchableOpacity>
-          ),
-        }}
-      />
+      <Stack.Screen options={{ title: player.name }} />
       <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Player Header */}
         <View style={styles.playerHeader}>
-          <View style={[styles.avatar, { backgroundColor: player.avatarColor }]}>
-            <Text style={styles.avatarText}>{player.name[0]?.toUpperCase()}</Text>
-          </View>
+          {player.avatarUrl ? (
+            <Image source={{ uri: player.avatarUrl }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, { backgroundColor: player.avatarColor ?? Colors.accent, alignItems: 'center', justifyContent: 'center' }]}>
+              <Text style={styles.avatarText}>{player.name[0]?.toUpperCase()}</Text>
+            </View>
+          )}
           <View style={styles.playerInfo}>
             <Text style={styles.playerName}>{player.name}</Text>
             {player.handle && <Text style={styles.playerHandle}>@{player.handle}</Text>}
-            <Text style={styles.playerSince}>
-              desde {new Date(player.createdAt).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
-            </Text>
+            {(player.regionCity || player.regionState) && (
+              <View style={styles.locationRow}>
+                <Ionicons name="location" size={12} color={Colors.textSecondary} />
+                <Text style={styles.locationText}>
+                  {player.regionCity}{player.regionCity && player.regionState ? ', ' : ''}{player.regionState}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -93,7 +93,6 @@ export default function PlayerDetailScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>H2H — Confronto Direto</Text>
 
-          {/* Opponent Selector */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.opponentRow}>
             {opponents.map(op => (
               <TouchableOpacity
@@ -101,9 +100,13 @@ export default function PlayerDetailScreen() {
                 style={[styles.opponentChip, selectedVs === op.id && styles.opponentChipActive]}
                 onPress={() => setSelectedVs(selectedVs === op.id ? null : op.id)}
               >
-                <View style={[styles.opChipAvatar, { backgroundColor: op.avatarColor }]}>
-                  <Text style={styles.opChipAvatarText}>{op.name[0]}</Text>
-                </View>
+                {op.avatarUrl ? (
+                  <Image source={{ uri: op.avatarUrl }} style={styles.opChipAvatar} />
+                ) : (
+                  <View style={[styles.opChipAvatar, { backgroundColor: op.avatarColor ?? Colors.accent, alignItems: 'center', justifyContent: 'center' }]}>
+                    <Text style={styles.opChipAvatarText}>{op.name[0]}</Text>
+                  </View>
+                )}
                 <Text style={[styles.opChipName, selectedVs === op.id && styles.opChipNameActive]}>
                   {op.name}
                 </Text>
@@ -119,27 +122,9 @@ export default function PlayerDetailScreen() {
                 <Text style={[styles.h2hPlayerName, styles.right]}>{vsP.name}</Text>
               </View>
 
-              <H2HBar
-                p1Name={player.name}
-                p2Name={vsP.name}
-                p1Value={h2h.p1Wins}
-                p2Value={h2h.p2Wins}
-                label="Vitórias"
-              />
-              <H2HBar
-                p1Name={player.name}
-                p2Name={vsP.name}
-                p1Value={h2h.p1SetsWon}
-                p2Value={h2h.p2SetsWon}
-                label="Sets"
-              />
-              <H2HBar
-                p1Name={player.name}
-                p2Name={vsP.name}
-                p1Value={h2h.p1GamesWon}
-                p2Value={h2h.p2GamesWon}
-                label="Games"
-              />
+              <H2HBar p1Name={player.name} p2Name={vsP.name} p1Value={h2h.p1Wins} p2Value={h2h.p2Wins} label="Vitórias" />
+              <H2HBar p1Name={player.name} p2Name={vsP.name} p1Value={h2h.p1SetsWon} p2Value={h2h.p2SetsWon} label="Sets" />
+              <H2HBar p1Name={player.name} p2Name={vsP.name} p1Value={h2h.p1GamesWon} p2Value={h2h.p2GamesWon} label="Games" />
 
               {h2h.lastMet && (
                 <Text style={styles.lastMet}>
@@ -151,7 +136,7 @@ export default function PlayerDetailScreen() {
                 <View style={styles.h2hMatches}>
                   <Text style={styles.h2hMatchesTitle}>Confrontos</Text>
                   {h2hMatches.map(m => (
-                    <MatchCard key={m.id} match={m} players={players} />
+                    <MatchCard key={m.id} match={m} profiles={profilesMap} />
                   ))}
                 </View>
               )}
@@ -168,7 +153,7 @@ export default function PlayerDetailScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Histórico</Text>
             {playerMatches.map(m => (
-              <MatchCard key={m.id} match={m} players={players} />
+              <MatchCard key={m.id} match={m} profiles={profilesMap} />
             ))}
           </View>
         )}
@@ -185,12 +170,13 @@ const styles = StyleSheet.create({
   notFound: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   notFoundText: { color: Colors.textSecondary, fontSize: Font.md },
   playerHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  avatar: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 72, height: 72, borderRadius: 36 },
   avatarText: { fontSize: Font.xxxl, fontWeight: '900', color: Colors.bg },
   playerInfo: { flex: 1, gap: 2 },
   playerName: { fontSize: Font.xl, fontWeight: '800', color: Colors.text },
   playerHandle: { fontSize: Font.md, color: Colors.textSecondary },
-  playerSince: { fontSize: Font.xs, color: Colors.textTertiary },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  locationText: { fontSize: Font.xs, color: Colors.textSecondary, fontWeight: '600' },
   section: { gap: Spacing.sm },
   sectionTitle: {
     fontSize: Font.xs, fontWeight: '800', color: Colors.textSecondary,
@@ -205,14 +191,11 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: 'transparent',
   },
   opponentChipActive: { borderColor: Colors.blue },
-  opChipAvatar: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  opChipAvatar: { width: 24, height: 24, borderRadius: 12 },
   opChipAvatarText: { fontSize: Font.xs, fontWeight: '800', color: Colors.bg },
   opChipName: { fontSize: Font.sm, color: Colors.textSecondary, fontWeight: '600' },
   opChipNameActive: { color: Colors.text },
-  h2hCard: {
-    backgroundColor: Colors.card, borderRadius: Radius.lg,
-    padding: Spacing.md, gap: Spacing.md,
-  },
+  h2hCard: { backgroundColor: Colors.card, borderRadius: Radius.lg, padding: Spacing.md, gap: Spacing.md },
   h2hHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   h2hPlayerName: { flex: 1, fontSize: Font.sm, fontWeight: '800', color: Colors.text },
   h2hVs: { fontSize: Font.xs, fontWeight: '900', color: Colors.textTertiary },
@@ -223,9 +206,6 @@ const styles = StyleSheet.create({
     fontSize: Font.xs, fontWeight: '800', color: Colors.textSecondary,
     textTransform: 'uppercase', letterSpacing: 1,
   },
-  h2hEmpty: {
-    backgroundColor: Colors.card, borderRadius: Radius.md,
-    padding: Spacing.xl, alignItems: 'center',
-  },
+  h2hEmpty: { backgroundColor: Colors.card, borderRadius: Radius.md, padding: Spacing.xl, alignItems: 'center' },
   h2hEmptyText: { fontSize: Font.sm, color: Colors.textTertiary },
 });

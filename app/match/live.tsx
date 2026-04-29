@@ -1,25 +1,35 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Modal } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Image } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Radius, Font, SurfaceColors, SURFACE_LABELS } from '../../constants/theme';
 import { useMatchStore } from '../../stores/useMatchStore';
-import { usePlayerStore } from '../../stores/usePlayerStore';
-import { Surface, MatchFormat } from '../../constants/types';
+import { useProfileStore } from '../../stores/useProfileStore';
+import { Surface, Profile } from '../../constants/types';
 
 const SURFACES: Surface[] = ['clay', 'hard', 'grass'];
 
 export default function LiveMatchScreen() {
   const { liveMatch, startLive, awardGame, awardTiebreakPoint, finishLive, cancelLive } = useMatchStore();
-  const { players, myPlayerId } = usePlayerStore();
+  const me = useProfileStore(s => s.me);
+  const nearby = useProfileStore(s => s.nearby);
+
+  const allProfiles = useMemo(() => {
+    const list: Profile[] = [];
+    if (me) list.push(me);
+    list.push(...nearby);
+    return list;
+  }, [me, nearby]);
+  const profilesMap = useMemo(() => new Map(allProfiles.map(p => [p.id, p])), [allProfiles]);
+
   const [showSetup, setShowSetup] = useState(!liveMatch);
-  const [p1Id, setP1Id] = useState(myPlayerId ?? '');
+  const [p1Id, setP1Id] = useState(me?.id ?? '');
   const [p2Id, setP2Id] = useState('');
   const [surface, setSurface] = useState<Surface>('hard');
 
-  const p1 = players.find(p => p.id === (liveMatch?.player1Id ?? p1Id));
-  const p2 = players.find(p => p.id === (liveMatch?.player2Id ?? p2Id));
+  const p1 = profilesMap.get(liveMatch?.player1Id ?? p1Id);
+  const p2 = profilesMap.get(liveMatch?.player2Id ?? p2Id);
 
   const handleStart = () => {
     if (!p1Id || !p2Id || p1Id === p2Id) {
@@ -64,15 +74,19 @@ export default function LiveMatchScreen() {
           <Text style={styles.sectionTitle}>Jogador 1</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.chipRow}>
-              {players.map(p => (
+              {allProfiles.map(p => (
                 <TouchableOpacity
                   key={p.id}
                   style={[styles.playerChip, p1Id === p.id && styles.chipActive]}
                   onPress={() => setP1Id(p.id)}
                 >
-                  <View style={[styles.chipDot, { backgroundColor: p.avatarColor }]}>
-                    <Text style={styles.chipDotText}>{p.name[0]}</Text>
-                  </View>
+                  {p.avatarUrl ? (
+                    <Image source={{ uri: p.avatarUrl }} style={styles.chipDot} />
+                  ) : (
+                    <View style={[styles.chipDot, { backgroundColor: p.avatarColor ?? Colors.accent, alignItems: 'center', justifyContent: 'center' }]}>
+                      <Text style={styles.chipDotText}>{p.name[0]}</Text>
+                    </View>
+                  )}
                   <Text style={[styles.chipLabel, p1Id === p.id && styles.chipLabelActive]}>{p.name}</Text>
                 </TouchableOpacity>
               ))}
@@ -84,15 +98,19 @@ export default function LiveMatchScreen() {
           <Text style={styles.sectionTitle}>Jogador 2</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.chipRow}>
-              {players.filter(p => p.id !== p1Id).map(p => (
+              {allProfiles.filter(p => p.id !== p1Id).map(p => (
                 <TouchableOpacity
                   key={p.id}
                   style={[styles.playerChip, p2Id === p.id && styles.chipActive]}
                   onPress={() => setP2Id(p.id)}
                 >
-                  <View style={[styles.chipDot, { backgroundColor: p.avatarColor }]}>
-                    <Text style={styles.chipDotText}>{p.name[0]}</Text>
-                  </View>
+                  {p.avatarUrl ? (
+                    <Image source={{ uri: p.avatarUrl }} style={styles.chipDot} />
+                  ) : (
+                    <View style={[styles.chipDot, { backgroundColor: p.avatarColor ?? Colors.accent, alignItems: 'center', justifyContent: 'center' }]}>
+                      <Text style={styles.chipDotText}>{p.name[0]}</Text>
+                    </View>
+                  )}
                   <Text style={[styles.chipLabel, p2Id === p.id && styles.chipLabelActive]}>{p.name}</Text>
                 </TouchableOpacity>
               ))}
@@ -168,9 +186,13 @@ export default function LiveMatchScreen() {
         {/* Current score */}
         <View style={styles.scoreBoard}>
           <View style={styles.scoreCol}>
-            <View style={[styles.playerAvatarLg, { backgroundColor: p1?.avatarColor ?? Colors.card }]}>
-              <Text style={styles.playerAvatarLgText}>{p1?.name?.[0]}</Text>
-            </View>
+            {p1?.avatarUrl ? (
+              <Image source={{ uri: p1.avatarUrl }} style={styles.playerAvatarLg} />
+            ) : (
+              <View style={[styles.playerAvatarLg, { backgroundColor: p1?.avatarColor ?? Colors.card, alignItems: 'center', justifyContent: 'center' }]}>
+                <Text style={styles.playerAvatarLgText}>{p1?.name?.[0]}</Text>
+              </View>
+            )}
             <Text style={styles.scoreName} numberOfLines={1}>{p1?.name}</Text>
             <Text style={styles.setsCount}>{p1Sets}</Text>
             <Text style={styles.gamesCount}>
@@ -184,9 +206,13 @@ export default function LiveMatchScreen() {
           </View>
 
           <View style={styles.scoreCol}>
-            <View style={[styles.playerAvatarLg, { backgroundColor: p2?.avatarColor ?? Colors.card }]}>
-              <Text style={styles.playerAvatarLgText}>{p2?.name?.[0]}</Text>
-            </View>
+            {p2?.avatarUrl ? (
+              <Image source={{ uri: p2.avatarUrl }} style={styles.playerAvatarLg} />
+            ) : (
+              <View style={[styles.playerAvatarLg, { backgroundColor: p2?.avatarColor ?? Colors.card, alignItems: 'center', justifyContent: 'center' }]}>
+                <Text style={styles.playerAvatarLgText}>{p2?.name?.[0]}</Text>
+              </View>
+            )}
             <Text style={styles.scoreName} numberOfLines={1}>{p2?.name}</Text>
             <Text style={styles.setsCount}>{p2Sets}</Text>
             <Text style={styles.gamesCount}>
@@ -201,7 +227,7 @@ export default function LiveMatchScreen() {
         <View style={styles.winnerSection}>
           <Ionicons name="trophy" size={64} color={Colors.accent} />
           <Text style={styles.winnerTitle}>
-            {players.find(p => p.id === live.winnerId)?.name} venceu!
+            {profilesMap.get(live.winnerId ?? '')?.name} venceu!
           </Text>
           <TouchableOpacity style={styles.finishBtn} onPress={handleFinish}>
             <Text style={styles.finishBtnText}>SALVAR PARTIDA</Text>
@@ -225,6 +251,7 @@ export default function LiveMatchScreen() {
             >
               <Text style={styles.gameBtnText}>{p2?.name?.split(' ')[0]}</Text>
             </TouchableOpacity>
+
           </View>
 
           <View style={styles.controlRow}>

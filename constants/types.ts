@@ -11,6 +11,8 @@ export interface MatchSet {
   tiebreak?: { p1: number; p2: number };
 }
 
+export type MatchStatus = 'pending' | 'confirmed' | 'rejected';
+
 export interface Match {
   id: string;
   date: string;
@@ -23,21 +25,16 @@ export interface Match {
   sets: MatchSet[];
   surface: Surface;
   format: MatchFormat;
+  status: MatchStatus;
+  confirmedAt?: string;
+  rejectedAt?: string;
   notes?: string;
   duration?: number;
   createdAt: string;
 }
 
-export interface Player {
-  id: string;
-  name: string;
-  handle?: string;
-  avatarColor: string;
-  createdAt: string;
-  isMe?: boolean;
-}
-
 // Authenticated user on the platform — extended profile (onboarding fields).
+// Match player1Id/player2Id/winnerId all reference Profile.id directly.
 export interface Profile {
   id: string;
   name: string;

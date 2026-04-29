@@ -15,7 +15,6 @@ import {
   DominantHand, PlayStyle, Profile,
 } from '../constants/types';
 import { useProfileStore } from '../stores/useProfileStore';
-import { usePlayerStore } from '../stores/usePlayerStore';
 import { useAuth } from '../lib/AuthContext';
 import { supabase } from '../lib/supabase';
 
@@ -56,7 +55,6 @@ export default function OnboardingScreen() {
   const { session } = useAuth();
   const me = useProfileStore(s => s.me);
   const completeOnboarding = useProfileStore(s => s.completeOnboarding);
-  const setupMe = usePlayerStore(s => s.setupMe);
 
   const [stepIdx, setStepIdx] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -129,9 +127,6 @@ export default function OnboardingScreen() {
       similarProId: draft.similarProId,
     };
     const updated = await completeOnboarding(patch);
-    if (updated) {
-      await setupMe(session.user.id, updated.name, updated.handle);
-    }
     setSaving(false);
     if (updated) router.replace('/(tabs)');
   };

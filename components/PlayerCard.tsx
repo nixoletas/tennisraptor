@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Colors, Radius, Spacing, Font } from '../constants/theme';
-import { Player } from '../constants/types';
+import { Profile } from '../constants/types';
 
 interface Props {
-  player: Player;
+  profile: Profile;
+  isMe?: boolean;
   onPress?: () => void;
   wins?: number;
   losses?: number;
@@ -12,7 +13,7 @@ interface Props {
   right?: React.ReactNode;
 }
 
-export function PlayerCard({ player, onPress, wins, losses, subtitle, right }: Props) {
+export function PlayerCard({ profile, isMe, onPress, wins, losses, subtitle, right }: Props) {
   const total = (wins ?? 0) + (losses ?? 0);
   const wr = total > 0 ? Math.round(((wins ?? 0) / total) * 100) : null;
 
@@ -22,15 +23,20 @@ export function PlayerCard({ player, onPress, wins, losses, subtitle, right }: P
       onPress={onPress}
       activeOpacity={onPress ? 0.75 : 1}
     >
-      <View style={[styles.avatar, { backgroundColor: player.avatarColor }]}>
-        <Text style={styles.avatarText}>{player.name[0]?.toUpperCase()}</Text>
-      </View>
+      {profile.avatarUrl ? (
+        <Image source={{ uri: profile.avatarUrl }} style={styles.avatar} />
+      ) : (
+        <View style={[styles.avatar, { backgroundColor: profile.avatarColor ?? Colors.accent, alignItems: 'center', justifyContent: 'center' }]}>
+          <Text style={styles.avatarText}>{profile.name[0]?.toUpperCase()}</Text>
+        </View>
+      )}
 
       <View style={styles.info}>
         <View style={styles.nameRow}>
-          <Text style={styles.name}>{player.name}</Text>
-          {player.isMe && <View style={styles.meBadge}><Text style={styles.meBadgeText}>eu</Text></View>}
+          <Text style={styles.name}>{profile.name}</Text>
+          {isMe && <View style={styles.meBadge}><Text style={styles.meBadgeText}>eu</Text></View>}
         </View>
+        {profile.handle && <Text style={styles.handle}>@{profile.handle}</Text>}
         {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
         {wins !== undefined && (
           <Text style={styles.subtitle}>
@@ -46,52 +52,19 @@ export function PlayerCard({ player, onPress, wins, losses, subtitle, right }: P
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.card,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
+    backgroundColor: Colors.card, borderRadius: Radius.md,
+    padding: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
   },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: Font.lg,
-    fontWeight: '800',
-    color: Colors.bg,
-  },
-  info: {
-    flex: 1,
-    gap: 2,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  name: {
-    fontSize: Font.md,
-    fontWeight: '700',
-    color: Colors.text,
-  },
+  avatar: { width: 44, height: 44, borderRadius: 22 },
+  avatarText: { fontSize: Font.lg, fontWeight: '800', color: Colors.bg },
+  info: { flex: 1, gap: 2 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  name: { fontSize: Font.md, fontWeight: '700', color: Colors.text },
+  handle: { fontSize: Font.sm, color: Colors.textSecondary },
   meBadge: {
     backgroundColor: Colors.accent + '30',
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: Radius.full,
+    paddingHorizontal: 6, paddingVertical: 1, borderRadius: Radius.full,
   },
-  meBadgeText: {
-    fontSize: Font.xs,
-    color: Colors.accent,
-    fontWeight: '700',
-  },
-  subtitle: {
-    fontSize: Font.sm,
-    color: Colors.textSecondary,
-  },
+  meBadgeText: { fontSize: Font.xs, color: Colors.accent, fontWeight: '700' },
+  subtitle: { fontSize: Font.sm, color: Colors.textSecondary },
 });

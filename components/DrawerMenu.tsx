@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius, Font } from '../constants/theme';
 import { useAuth } from '../lib/AuthContext';
 import { useProfileStore } from '../stores/useProfileStore';
+import { useMatchStore } from '../stores/useMatchStore';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const DRAWER_W = Math.min(320, SCREEN_W * 0.82);
@@ -21,6 +22,7 @@ interface Item {
   label: string;
   onPress: () => void;
   destructive?: boolean;
+  badge?: number;
 }
 
 export function DrawerMenu({ visible, onClose }: Props) {
@@ -28,6 +30,8 @@ export function DrawerMenu({ visible, onClose }: Props) {
   const fade = useRef(new Animated.Value(0)).current;
   const { signOut } = useAuth();
   const me = useProfileStore(s => s.me);
+  const matches = useMatchStore(s => s.matches);
+  const pendingCount = me ? matches.filter(m => m.player2Id === me.id && m.status === 'pending').length : 0;
 
   useEffect(() => {
     Animated.parallel([
@@ -55,6 +59,7 @@ export function DrawerMenu({ visible, onClose }: Props) {
   };
 
   const items: Item[] = [
+    { icon: 'checkmark-done-circle-outline', label: 'Aprovações', onPress: () => go('/pending'), badge: pendingCount },
     { icon: 'time-outline',     label: 'Histórico de partidas', onPress: () => go('/history') },
     { icon: 'information-circle-outline', label: 'Sobre',           onPress: () => go('/about') },
     { icon: 'log-out-outline',  label: 'Sair',                  onPress: handleSignOut, destructive: true },
@@ -90,6 +95,11 @@ export function DrawerMenu({ visible, onClose }: Props) {
               <Text style={[styles.itemLabel, it.destructive && { color: Colors.red }]}>
                 {it.label}
               </Text>
+              {it.badge && it.badge > 0 ? (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{it.badge}</Text>
+                </View>
+              ) : null}
             </TouchableOpacity>
           ))}
         </View>
@@ -120,5 +130,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
     padding: Spacing.md, borderRadius: Radius.md,
   },
-  itemLabel: { fontSize: Font.md, fontWeight: '700', color: Colors.text },
+  itemLabel: { fontSize: Font.md, fontWeight: '700', color: Colors.text, flex: 1 },
+  badge: {
+    backgroundColor: Colors.orange, borderRadius: Radius.full,
+    minWidth: 22, height: 22, paddingHorizontal: 6,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  badgeText: { fontSize: Font.xs, fontWeight: '900', color: Colors.bg },
 });

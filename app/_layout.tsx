@@ -89,6 +89,7 @@ export default function RootLayout() {
             <Stack.Screen name="match/[id]" options={{ title: 'Partida' }} />
             <Stack.Screen name="player/[id]" options={{ title: 'Jogador' }} />
             <Stack.Screen name="history" options={{ title: 'Histórico' }} />
+            <Stack.Screen name="pending" options={{ title: 'Aprovações' }} />
             <Stack.Screen name="about" options={{ title: 'Sobre' }} />
             <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
           </Stack>

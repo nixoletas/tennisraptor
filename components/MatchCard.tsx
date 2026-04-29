@@ -1,20 +1,31 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { router } from 'expo-router';
 import { Colors, Radius, Spacing, Font, SurfaceColors } from '../constants/theme';
-import { Match, Player } from '../constants/types';
+import { Match, Profile } from '../constants/types';
 
 interface Props {
   match: Match;
-  players: Player[];
-  myPlayerId?: string | null;
+  profiles: Map<string, Profile>;
+  myId?: string | null;
 }
 
-export function MatchCard({ match, players, myPlayerId }: Props) {
-  const p1 = players.find(p => p.id === match.player1Id);
-  const p2 = players.find(p => p.id === match.player2Id);
-  const won = match.winnerId === myPlayerId;
-  const myInMatch = match.player1Id === myPlayerId || match.player2Id === myPlayerId;
+function Avatar({ profile, fallback }: { profile?: Profile; fallback?: string }) {
+  if (profile?.avatarUrl) {
+    return <Image source={{ uri: profile.avatarUrl }} style={styles.avatar} />;
+  }
+  return (
+    <View style={[styles.avatar, { backgroundColor: profile?.avatarColor ?? Colors.textTertiary, alignItems: 'center', justifyContent: 'center' }]}>
+      <Text style={styles.avatarText}>{profile?.name?.[0]?.toUpperCase() ?? fallback ?? '?'}</Text>
+    </View>
+  );
+}
+
+export function MatchCard({ match, profiles, myId }: Props) {
+  const p1 = profiles.get(match.player1Id);
+  const p2 = profiles.get(match.player2Id);
+  const won = match.winnerId === myId;
+  const myInMatch = match.player1Id === myId || match.player2Id === myId;
   const surfaceColor = SurfaceColors[match.surface] ?? Colors.textSecondary;
 
   const scoreStr = match.sets
@@ -35,7 +46,17 @@ export function MatchCard({ match, players, myPlayerId }: Props) {
         <View style={[styles.surfaceDot, { backgroundColor: surfaceColor }]} />
         <Text style={styles.surface}>{match.surface.toUpperCase()}</Text>
         <Text style={styles.date}>{dateStr}</Text>
-        {myInMatch && (
+        {match.status === 'pending' && (
+          <View style={[styles.badge, { backgroundColor: Colors.orange + '30' }]}>
+            <Text style={[styles.badgeText, { color: Colors.orange }]}>PENDENTE</Text>
+          </View>
+        )}
+        {match.status === 'rejected' && (
+          <View style={[styles.badge, { backgroundColor: Colors.red + '30' }]}>
+            <Text style={[styles.badgeText, { color: Colors.red }]}>REJEITADA</Text>
+          </View>
+        )}
+        {match.status === 'confirmed' && myInMatch && (
           <View style={[styles.badge, { backgroundColor: won ? Colors.green + '30' : Colors.red + '30' }]}>
             <Text style={[styles.badgeText, { color: won ? Colors.green : Colors.red }]}>
               {won ? 'W' : 'L'}
@@ -46,9 +67,7 @@ export function MatchCard({ match, players, myPlayerId }: Props) {
 
       <View style={styles.matchup}>
         <View style={styles.playerRow}>
-          <View style={[styles.avatar, { backgroundColor: p1?.avatarColor ?? Colors.textTertiary }]}>
-            <Text style={styles.avatarText}>{p1?.name?.[0] ?? '?'}</Text>
-          </View>
+          <Avatar profile={p1} />
           <Text style={[styles.playerName, match.winnerId === match.player1Id && styles.winner]} numberOfLines={1}>
             {p1?.name ?? 'Desconhecido'}
           </Text>
@@ -57,9 +76,7 @@ export function MatchCard({ match, players, myPlayerId }: Props) {
         <Text style={styles.score}>{scoreStr}</Text>
 
         <View style={styles.playerRow}>
-          <View style={[styles.avatar, { backgroundColor: p2?.avatarColor ?? Colors.textTertiary }]}>
-            <Text style={styles.avatarText}>{p2?.name?.[0] ?? '?'}</Text>
-          </View>
+          <Avatar profile={p2} />
           <Text style={[styles.playerName, match.winnerId === match.player2Id && styles.winner]} numberOfLines={1}>
             {p2?.name ?? 'Desconhecido'}
           </Text>
@@ -81,65 +98,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.xs,
   },
-  surfaceDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
+  surfaceDot: { width: 8, height: 8, borderRadius: 4 },
   surface: {
-    fontSize: Font.xs,
-    color: Colors.textSecondary,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    flex: 1,
+    fontSize: Font.xs, color: Colors.textSecondary, fontWeight: '700',
+    letterSpacing: 0.5, flex: 1,
   },
-  date: {
-    fontSize: Font.xs,
-    color: Colors.textSecondary,
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: Radius.full,
-  },
-  badgeText: {
-    fontSize: Font.xs,
-    fontWeight: '800',
-  },
-  matchup: {
-    gap: 6,
-  },
-  playerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  avatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: Font.sm,
-    fontWeight: '700',
-    color: Colors.bg,
-  },
-  playerName: {
-    fontSize: Font.md,
-    color: Colors.textSecondary,
-    flex: 1,
-  },
-  winner: {
-    color: Colors.text,
-    fontWeight: '700',
-  },
+  date: { fontSize: Font.xs, color: Colors.textSecondary },
+  badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.full },
+  badgeText: { fontSize: Font.xs, fontWeight: '800' },
+  matchup: { gap: 6 },
+  playerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  avatar: { width: 28, height: 28, borderRadius: 14 },
+  avatarText: { fontSize: Font.sm, fontWeight: '700', color: Colors.bg },
+  playerName: { fontSize: Font.md, color: Colors.textSecondary, flex: 1 },
+  winner: { color: Colors.text, fontWeight: '700' },
   score: {
-    fontSize: Font.md,
-    color: Colors.textSecondary,
-    fontWeight: '600',
-    marginLeft: 36,
-    letterSpacing: 1,
+    fontSize: Font.md, color: Colors.textSecondary, fontWeight: '600',
+    marginLeft: 36, letterSpacing: 1,
   },
 });
