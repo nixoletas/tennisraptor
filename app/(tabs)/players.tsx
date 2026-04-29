@@ -47,7 +47,7 @@ export default function PlayersScreen() {
       <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
         {filtered.length === 0 && (
           <View style={styles.empty}>
-            <Text style={styles.emptyIcon}>👤</Text>
+            <Ionicons name="people-outline" size={48} color={Colors.textTertiary} />
             <Text style={styles.emptyTitle}>Nenhum jogador</Text>
             <Text style={styles.emptyText}>Adicione adversários para comparar estatísticas.</Text>
           </View>
@@ -113,7 +113,6 @@ const styles = StyleSheet.create({
   },
   list: { padding: Spacing.md, gap: Spacing.sm },
   empty: { alignItems: 'center', paddingVertical: Spacing.xxl, gap: Spacing.sm },
-  emptyIcon: { fontSize: 48 },
   emptyTitle: { fontSize: Font.lg, fontWeight: '700', color: Colors.textSecondary },
   emptyText: { fontSize: Font.sm, color: Colors.textTertiary, textAlign: 'center' },
   modalOverlay: {

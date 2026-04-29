@@ -2,25 +2,31 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius, Font } from '../constants/theme';
 import { usePlayerStore } from '../stores/usePlayerStore';
+import { useAuth } from '../lib/AuthContext';
 
 export default function OnboardingScreen() {
   const [name, setName] = useState('');
   const [handle, setHandle] = useState('');
+  const [saving, setSaving] = useState(false);
   const { setupMe } = usePlayerStore();
+  const { session } = useAuth();
 
-  const handleStart = () => {
-    if (!name.trim()) return;
-    setupMe(name.trim(), handle.trim() || undefined);
-    router.replace('/(tabs)');
+  const handleStart = async () => {
+    if (!name.trim() || !session) return;
+    setSaving(true);
+    const me = await setupMe(session.user.id, name.trim(), handle.trim() || undefined);
+    setSaving(false);
+    if (me) router.replace('/(tabs)');
   };
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <LinearGradient colors={['#1A2400', Colors.bg, Colors.bg]} style={styles.gradient}>
         <View style={styles.hero}>
-          <Text style={styles.logo}>🎾</Text>
+          <Ionicons name="tennisball" size={72} color={Colors.accent} />
           <Text style={styles.title}>TennisRaptor</Text>
           <Text style={styles.subtitle}>Rastreie partidas, compare stats{'\n'}e domine seus adversários.</Text>
         </View>
@@ -48,15 +54,15 @@ export default function OnboardingScreen() {
           />
 
           <TouchableOpacity
-            style={[styles.startBtn, !name.trim() && styles.startBtnDisabled]}
+            style={[styles.startBtn, (!name.trim() || saving) && styles.startBtnDisabled]}
             onPress={handleStart}
-            disabled={!name.trim()}
+            disabled={!name.trim() || saving}
           >
-            <Text style={styles.startBtnText}>COMEÇAR A JOGAR</Text>
+            <Text style={styles.startBtnText}>{saving ? 'SALVANDO...' : 'COMEÇAR A JOGAR'}</Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.note}>Seus dados ficam apenas no dispositivo.</Text>
+        <Text style={styles.note}>Seus dados ficam sincronizados na nuvem.</Text>
       </LinearGradient>
     </KeyboardAvoidingView>
   );
@@ -66,7 +72,6 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   gradient: { flex: 1, padding: Spacing.xl, justifyContent: 'space-between', paddingVertical: Spacing.xxl * 2 },
   hero: { alignItems: 'center', gap: Spacing.md },
-  logo: { fontSize: 80 },
   title: { fontSize: Font.display, fontWeight: '900', color: Colors.text, letterSpacing: -2 },
   subtitle: { fontSize: Font.md, color: Colors.textSecondary, textAlign: 'center', lineHeight: 22 },
   form: { gap: Spacing.md },

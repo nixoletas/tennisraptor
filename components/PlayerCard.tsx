@@ -39,9 +39,7 @@ export function PlayerCard({ player, onPress, wins, losses, subtitle, right }: P
         )}
       </View>
 
-      {right ?? (
-        <Text style={styles.rating}>{player.rating.toFixed(1)}</Text>
-      )}
+      {right}
     </TouchableOpacity>
   );
 }
@@ -95,10 +93,5 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: Font.sm,
     color: Colors.textSecondary,
-  },
-  rating: {
-    fontSize: Font.lg,
-    fontWeight: '800',
-    color: Colors.accent,
   },
 });

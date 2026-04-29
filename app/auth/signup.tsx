@@ -7,11 +7,9 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius, Font } from '../../constants/theme';
 import { useAuth } from '../../lib/AuthContext';
-import { usePlayerStore } from '../../stores/usePlayerStore';
 
 export default function SignupScreen() {
   const { signUp, signInWithGoogle } = useAuth();
-  const { setupMe } = usePlayerStore();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,7 +27,6 @@ export default function SignupScreen() {
     setLoading(true);
     try {
       await signUp(email.trim(), password, name.trim());
-      setupMe(name.trim()); // initialize local profile
       setSuccess(true);
     } catch (e: any) {
       setError(translateError(e.message));
@@ -53,7 +50,7 @@ export default function SignupScreen() {
   if (success) {
     return (
       <View style={styles.successContainer}>
-        <Text style={styles.successIcon}>📬</Text>
+        <Ionicons name="mail-unread-outline" size={64} color={Colors.accent} />
         <Text style={styles.successTitle}>Verifique seu email</Text>
         <Text style={styles.successText}>
           Enviamos um link de confirmação para{'\n'}
@@ -232,7 +229,6 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     padding: Spacing.xl, gap: Spacing.lg,
   },
-  successIcon: { fontSize: 72 },
   successTitle: { fontSize: Font.xxl, fontWeight: '900', color: Colors.text },
   successText: { fontSize: Font.md, color: Colors.textSecondary, textAlign: 'center', lineHeight: 24 },
   successEmail: { color: Colors.accent, fontWeight: '700' },

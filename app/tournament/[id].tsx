@@ -31,7 +31,7 @@ export default function TournamentDetailScreen() {
   }
 
   const standings = getStandings(id, matches);
-  const tournamentMatches = matches.filter(m => m.tournamentId === id && !m.isLive);
+  const tournamentMatches = matches.filter(m => m.tournamentId === id);
   const surfaceColor = SurfaceColors[tournament.surface] ?? Colors.textSecondary;
   const statusColor = STATUS_COLORS[tournament.status];
 

@@ -15,7 +15,7 @@ export default function HomeScreen() {
   const me = players.find(p => p.id === myPlayerId);
   const { getPlayerStats } = useMatchStore();
   const stats = myPlayerId ? getPlayerStats(myPlayerId) : null;
-  const recent = matches.filter(m => !m.isLive).slice(0, 5);
+  const recent = matches.slice(0, 5);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -104,7 +104,7 @@ export default function HomeScreen() {
       {/* Empty State */}
       {matches.length === 0 && !liveMatch && (
         <View style={styles.empty}>
-          <Text style={styles.emptyIcon}>🎾</Text>
+          <Ionicons name="tennisball-outline" size={56} color={Colors.textTertiary} />
           <Text style={styles.emptyTitle}>Nenhuma partida ainda</Text>
           <Text style={styles.emptyText}>Registre sua primeira partida ou inicie um jogo ao vivo.</Text>
           <TouchableOpacity style={styles.emptyBtn} onPress={() => router.push('/match/new')}>
@@ -168,7 +168,6 @@ const styles = StyleSheet.create({
   statsRow: { flexDirection: 'row', gap: Spacing.sm },
   matchList: { gap: Spacing.sm },
   empty: { alignItems: 'center', paddingVertical: Spacing.xxl, paddingHorizontal: Spacing.xl, gap: Spacing.md },
-  emptyIcon: { fontSize: 64 },
   emptyTitle: { fontSize: Font.xl, fontWeight: '800', color: Colors.text },
   emptyText: { fontSize: Font.md, color: Colors.textSecondary, textAlign: 'center' },
   emptyBtn: { backgroundColor: Colors.accent, borderRadius: Radius.full, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md },

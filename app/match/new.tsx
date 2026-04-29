@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius, Font, SurfaceColors } from '../../constants/theme';
@@ -31,7 +31,8 @@ function determineWinner(sets: MatchSet[], p1Id: string, p2Id: string): string |
 
 export default function NewMatchScreen() {
   const { logMatch } = useMatchStore();
-  const { players, myPlayerId, recordResult } = usePlayerStore();
+  const { players, myPlayerId } = usePlayerStore();
+  const [saving, setSaving] = useState(false);
 
   const [p1Id, setP1Id] = useState(myPlayerId ?? '');
   const [p2Id, setP2Id] = useState('');
@@ -48,9 +49,10 @@ export default function NewMatchScreen() {
 
   const canSave = p1Id && p2Id && p1Id !== p2Id && sets.some(s => s.p1 > 0 || s.p2 > 0);
 
-  const handleSave = () => {
-    if (!canSave) return;
-    const match = logMatch({
+  const handleSave = async () => {
+    if (!canSave || saving) return;
+    setSaving(true);
+    const match = await logMatch({
       date,
       player1Id: p1Id,
       player2Id: p2Id,
@@ -60,11 +62,8 @@ export default function NewMatchScreen() {
       format: 'best_of_3',
       notes: notes.trim() || undefined,
     });
-    if (winnerId) {
-      recordResult(p1Id, winnerId === p1Id);
-      recordResult(p2Id, winnerId === p2Id);
-    }
-    router.back();
+    setSaving(false);
+    if (match) router.back();
   };
 
   return (
@@ -156,8 +155,9 @@ export default function NewMatchScreen() {
         <SetScoreInput sets={sets} onChange={setSets} />
         {winnerId && (
           <View style={styles.winnerBanner}>
+            <Ionicons name="trophy" size={16} color={Colors.accent} />
             <Text style={styles.winnerText}>
-              🏆 {players.find(p => p.id === winnerId)?.name} venceu
+              {players.find(p => p.id === winnerId)?.name} venceu
             </Text>
           </View>
         )}
@@ -192,11 +192,13 @@ export default function NewMatchScreen() {
 
       {/* Save */}
       <TouchableOpacity
-        style={[styles.saveBtn, !canSave && styles.saveBtnDisabled]}
+        style={[styles.saveBtn, (!canSave || saving) && styles.saveBtnDisabled]}
         onPress={handleSave}
-        disabled={!canSave}
+        disabled={!canSave || saving}
       >
-        <Text style={styles.saveBtnText}>SALVAR PARTIDA</Text>
+        {saving
+          ? <ActivityIndicator color={Colors.bg} />
+          : <Text style={styles.saveBtnText}>SALVAR PARTIDA</Text>}
       </TouchableOpacity>
 
       <View style={{ height: Spacing.xl }} />
@@ -248,8 +250,9 @@ const styles = StyleSheet.create({
   scoreDash: { fontSize: Font.sm, color: Colors.textTertiary },
   right: { textAlign: 'right' },
   winnerBanner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs,
     backgroundColor: Colors.accent + '20', borderRadius: Radius.md,
-    padding: Spacing.sm, alignItems: 'center',
+    padding: Spacing.sm,
   },
   winnerText: { fontSize: Font.md, fontWeight: '700', color: Colors.accent },
   input: {

@@ -19,7 +19,7 @@ export default function ProfileScreen() {
   const [handle, setHandle] = useState(me?.handle ?? '');
 
   const stats = myPlayerId ? getPlayerStats(myPlayerId) : null;
-  const myMatches = matches.filter(m => !m.isLive && (m.player1Id === myPlayerId || m.player2Id === myPlayerId));
+  const myMatches = matches.filter(m => m.player1Id === myPlayerId || m.player2Id === myPlayerId);
 
   const surfaceCounts: Record<string, number> = {};
   for (const m of myMatches) {
@@ -31,9 +31,9 @@ export default function ProfileScreen() {
     clay: 'Saibro', hard: 'Duro', grass: 'Grama', carpet: 'Carpete', indoor: 'Indoor',
   };
 
-  const handleSave = () => {
-    if (!name.trim()) return;
-    setupMe(name.trim(), handle.trim() || undefined);
+  const handleSave = async () => {
+    if (!name.trim() || !user) return;
+    await setupMe(user.id, name.trim(), handle.trim() || undefined);
     setShowSetup(false);
   };
 
@@ -50,11 +50,10 @@ export default function ProfileScreen() {
   };
 
   if (!me) {
-    const defaultName = user?.user_metadata?.full_name ?? user?.email?.split('@')[0] ?? '';
     return (
       <View style={styles.container}>
         <View style={styles.setupContainer}>
-          <Text style={styles.setupEmoji}>🎾</Text>
+          <Ionicons name="tennisball" size={64} color={Colors.accent} />
           <Text style={styles.setupTitle}>Bem-vindo ao TennisRaptor</Text>
           <Text style={styles.setupSub}>Configure seu perfil para começar a rastrear suas partidas.</Text>
           <TextInput
@@ -195,7 +194,6 @@ const styles = StyleSheet.create({
   setupContainer: {
     flex: 1, padding: Spacing.xl, justifyContent: 'center', alignItems: 'center', gap: Spacing.md,
   },
-  setupEmoji: { fontSize: 72 },
   setupTitle: { fontSize: Font.xxl, fontWeight: '900', color: Colors.text, textAlign: 'center' },
   setupSub: { fontSize: Font.md, color: Colors.textSecondary, textAlign: 'center' },
   profileHeader: {

@@ -43,7 +43,7 @@ export default function PlayerDetailScreen() {
   };
 
   const playerMatches = matches
-    .filter(m => !m.isLive && (m.player1Id === player.id || m.player2Id === player.id))
+    .filter(m => m.player1Id === player.id || m.player2Id === player.id)
     .slice(0, 20);
 
   const h2hMatches = h2h?.matches ?? [];

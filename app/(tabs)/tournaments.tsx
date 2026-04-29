@@ -49,7 +49,7 @@ export default function TournamentsScreen() {
           <>
             {tournaments.length === 0 ? (
               <View style={styles.empty}>
-                <Text style={styles.emptyIcon}>🏆</Text>
+                <Ionicons name="trophy-outline" size={48} color={Colors.textTertiary} />
                 <Text style={styles.emptyTitle}>Nenhum torneio</Text>
                 <TouchableOpacity style={styles.newBtn} onPress={() => router.push('/tournament/new')}>
                   <Text style={styles.newBtnText}>CRIAR TORNEIO</Text>
@@ -102,7 +102,7 @@ export default function TournamentsScreen() {
           <>
             {groups.length === 0 ? (
               <View style={styles.empty}>
-                <Text style={styles.emptyIcon}>👥</Text>
+                <Ionicons name="people-outline" size={48} color={Colors.textTertiary} />
                 <Text style={styles.emptyTitle}>Nenhum grupo</Text>
                 <Text style={styles.emptyText}>Crie um grupo para acompanhar rankings entre amigos.</Text>
               </View>
@@ -168,7 +168,6 @@ const styles = StyleSheet.create({
   metaText: { fontSize: Font.xs, color: Colors.textSecondary },
   metaDate: { fontSize: Font.xs, color: Colors.textTertiary, marginLeft: 'auto' },
   empty: { alignItems: 'center', paddingVertical: Spacing.xxl, gap: Spacing.md },
-  emptyIcon: { fontSize: 48 },
   emptyTitle: { fontSize: Font.lg, fontWeight: '700', color: Colors.textSecondary },
   emptyText: { fontSize: Font.sm, color: Colors.textTertiary, textAlign: 'center' },
   newBtn: {

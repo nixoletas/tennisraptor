@@ -50,7 +50,7 @@ export default function LoginScreen() {
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {/* Logo */}
           <View style={styles.hero}>
-            <Text style={styles.logo}>🎾</Text>
+            <Ionicons name="tennisball" size={56} color={Colors.accent} />
             <Text style={styles.title}>TennisRaptor</Text>
             <Text style={styles.subtitle}>Rastreie partidas. Domine adversários.</Text>
           </View>
@@ -178,7 +178,6 @@ const styles = StyleSheet.create({
   gradient: { flex: 1 },
   content: { flexGrow: 1, padding: Spacing.xl, gap: Spacing.xl, justifyContent: 'center' },
   hero: { alignItems: 'center', gap: Spacing.sm },
-  logo: { fontSize: 56 },
   title: { fontSize: Font.xxxl, fontWeight: '900', color: Colors.text, letterSpacing: -1.5 },
   subtitle: { fontSize: Font.sm, color: Colors.textSecondary },
   form: { gap: Spacing.md },

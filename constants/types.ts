@@ -21,8 +21,7 @@ export interface Match {
   tournamentId?: string;
   groupId?: string;
   notes?: string;
-  isLive: boolean;
-  duration?: number; // minutes
+  duration?: number;
   createdAt: string;
 }
 
@@ -30,10 +29,7 @@ export interface Player {
   id: string;
   name: string;
   handle?: string;
-  rating: number;
   avatarColor: string;
-  wins: number;
-  losses: number;
   createdAt: string;
   isMe?: boolean;
 }
@@ -77,11 +73,11 @@ export interface Group {
   id: string;
   name: string;
   memberIds: string[];
-  adminId: string;
+  adminId: string | null;
   createdAt: string;
 }
 
-// Live match tracking state
+// Live match tracking state — client-only, not persisted to DB until match ends.
 export interface LiveMatchState {
   matchId: string;
   player1Id: string;
@@ -92,7 +88,7 @@ export interface LiveMatchState {
   currentSet: number;
   p1CurrentGames: number;
   p2CurrentGames: number;
-  p1Points: number; // 0,1,2,3 = 0,15,30,40
+  p1Points: number;
   p2Points: number;
   isDeuce: boolean;
   p1Adv: boolean;

@@ -5,14 +5,16 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { AuthProvider, useAuth } from '../lib/AuthContext';
+import { useHydrate } from '../lib/useHydrate';
 
 SplashScreen.preventAutoHideAsync();
 
-// Handles redirect logic after auth state resolves
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+
+  useHydrate();
 
   useEffect(() => {
     if (loading) return;

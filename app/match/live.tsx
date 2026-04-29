@@ -15,7 +15,7 @@ const SURFACE_LABELS: Record<Surface, string> = {
 
 export default function LiveMatchScreen() {
   const { liveMatch, startLive, awardGame, awardTiebreakPoint, finishLive, cancelLive } = useMatchStore();
-  const { players, myPlayerId, recordResult } = usePlayerStore();
+  const { players, myPlayerId } = usePlayerStore();
   const [showSetup, setShowSetup] = useState(!liveMatch);
   const [p1Id, setP1Id] = useState(myPlayerId ?? '');
   const [p2Id, setP2Id] = useState('');
@@ -41,12 +41,8 @@ export default function LiveMatchScreen() {
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Finalizar',
-          onPress: () => {
-            const match = finishLive();
-            if (match?.winnerId) {
-              recordResult(match.player1Id, match.winnerId === match.player1Id);
-              recordResult(match.player2Id, match.winnerId === match.player2Id);
-            }
+          onPress: async () => {
+            await finishLive();
             router.replace('/(tabs)/history');
           },
         },
@@ -206,7 +202,7 @@ export default function LiveMatchScreen() {
       {/* Game buttons */}
       {live.isComplete ? (
         <View style={styles.winnerSection}>
-          <Text style={styles.winnerEmoji}>🏆</Text>
+          <Ionicons name="trophy" size={64} color={Colors.accent} />
           <Text style={styles.winnerTitle}>
             {players.find(p => p.id === live.winnerId)?.name} venceu!
           </Text>
@@ -320,7 +316,6 @@ const styles = StyleSheet.create({
     flex: 1, alignItems: 'center', justifyContent: 'center',
     padding: Spacing.xl, gap: Spacing.lg, backgroundColor: Colors.surface,
   },
-  winnerEmoji: { fontSize: 80 },
   winnerTitle: { fontSize: Font.xxl, fontWeight: '900', color: Colors.accent, textAlign: 'center' },
   finishBtn: {
     backgroundColor: Colors.accent, borderRadius: Radius.full,

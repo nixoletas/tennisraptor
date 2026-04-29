@@ -20,7 +20,6 @@ export default function HistoryScreen() {
   const [showMine, setShowMine] = useState(false);
 
   const filtered = matches
-    .filter(m => !m.isLive)
     .filter(m => surface === 'all' || m.surface === surface)
     .filter(m => !showMine || m.player1Id === myPlayerId || m.player2Id === myPlayerId);
 
@@ -66,7 +65,7 @@ export default function HistoryScreen() {
       <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
         {filtered.length === 0 ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyIcon}>🎾</Text>
+            <Ionicons name="tennisball-outline" size={48} color={Colors.textTertiary} />
             <Text style={styles.emptyTitle}>Nenhuma partida</Text>
             <TouchableOpacity style={styles.newBtn} onPress={() => router.push('/match/new')}>
               <Text style={styles.newBtnText}>REGISTRAR</Text>
@@ -116,7 +115,6 @@ const styles = StyleSheet.create({
   list: { padding: Spacing.md, gap: Spacing.sm },
   count: { fontSize: Font.xs, color: Colors.textTertiary, fontWeight: '600', letterSpacing: 0.5 },
   empty: { alignItems: 'center', paddingVertical: Spacing.xxl, gap: Spacing.md },
-  emptyIcon: { fontSize: 48 },
   emptyTitle: { fontSize: Font.lg, fontWeight: '700', color: Colors.textSecondary },
   newBtn: {
     backgroundColor: Colors.accent, borderRadius: Radius.full,
