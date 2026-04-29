@@ -1,35 +1,33 @@
 import { useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { supabase } from '../../lib/supabase';
+import { createSessionFromUrl } from '../../lib/AuthContext';
 import { Colors } from '../../constants/theme';
 
-// Web-only: Supabase redirects to /auth/callback after Google OAuth.
-// This page exchanges the code for a session and redirects to the app.
+// This page is reached in two ways:
+// 1. Web: browser is redirected here by Supabase after Google OAuth
+// 2. Native: Expo Router maps the exp:// deep link path here
+//    (the Linking listener in AuthContext already handles native — just show spinner)
 export default function AuthCallbackPage() {
   const router = useRouter();
 
   useEffect(() => {
+    if (Platform.OS !== 'web') {
+      // Native session is handled by the Linking listener in AuthContext.
+      // Nothing to do here — AuthGate will redirect once session is set.
+      return;
+    }
+
+    // Web: read URL from browser and create session
     const url = typeof window !== 'undefined' ? window.location.href : '';
     if (!url) return;
 
-    const exchange = async () => {
-      if (url.includes('code=')) {
-        await supabase.auth.exchangeCodeForSession(url);
-      } else if (url.includes('access_token=')) {
-        const hash = url.split('#')[1] ?? '';
-        const params = Object.fromEntries(new URLSearchParams(hash));
-        if (params.access_token) {
-          await supabase.auth.setSession({
-            access_token: params.access_token,
-            refresh_token: params.refresh_token ?? '',
-          });
-        }
-      }
-      router.replace('/(tabs)');
-    };
-
-    exchange().catch(console.error);
+    createSessionFromUrl(url)
+      .then(() => router.replace('/(tabs)'))
+      .catch(err => {
+        console.error('[auth/callback] error:', err);
+        router.replace('/auth/login');
+      });
   }, []);
 
   return (

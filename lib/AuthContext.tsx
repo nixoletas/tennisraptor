@@ -1,16 +1,42 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { Platform } from 'react-native';
 import { Session, User } from '@supabase/supabase-js';
+import { makeRedirectUri } from 'expo-auth-session';
+import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { supabase } from './supabase';
 
 WebBrowser.maybeCompleteAuthSession();
 
+// Auto-detects environment:
+// Expo Go  → exp://192.168.x.x:8081
+// Standalone → tennisraptor://
+const redirectTo = makeRedirectUri();
+
+// Parses the redirect URL and creates a Supabase session.
+// Supabase returns access_token + refresh_token directly in the URL
+// when using a custom/exp:// scheme (implicit flow, not PKCE code).
+export async function createSessionFromUrl(url: string) {
+  const { params, errorCode } = QueryParams.getQueryParams(url);
+  if (errorCode) throw new Error(errorCode);
+
+  const { access_token, refresh_token } = params;
+  if (!access_token) return null;
+
+  const { data, error } = await supabase.auth.setSession({
+    access_token,
+    refresh_token: refresh_token ?? '',
+  });
+  if (error) throw error;
+  return data.session;
+}
+
 interface AuthContextType {
   session: Session | null;
   user: User | null;
   loading: boolean;
+  redirectTo: string;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
@@ -18,28 +44,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
-
-// Handles the URL returned by Supabase after OAuth completes.
-// Works for both PKCE (code=...) and implicit (#access_token=...).
-async function handleAuthCallback(url: string) {
-  // PKCE flow: ?code=xxx
-  if (url.includes('code=')) {
-    const { error } = await supabase.auth.exchangeCodeForSession(url);
-    if (error) console.error('[auth] exchangeCodeForSession:', error.message);
-    return;
-  }
-
-  // Implicit flow: #access_token=xxx&refresh_token=yyy
-  const fragment = url.split('#')[1] ?? '';
-  const params = Object.fromEntries(new URLSearchParams(fragment));
-  if (params.access_token) {
-    const { error } = await supabase.auth.setSession({
-      access_token: params.access_token,
-      refresh_token: params.refresh_token ?? '',
-    });
-    if (error) console.error('[auth] setSession:', error.message);
-  }
-}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -58,20 +62,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Deep-link listener — catches the OAuth redirect on native (both Expo Go and standalone)
+  // Native deep-link listener: fired when the OS hands a URL back to the app
+  // after Google OAuth (browser redirects to exp:// or tennisraptor://).
   useEffect(() => {
     if (Platform.OS === 'web') return;
 
     const sub = Linking.addEventListener('url', ({ url }) => {
-      const prefix = Linking.createURL('/');
-      if (url.startsWith(prefix)) {
-        WebBrowser.dismissBrowser();
-        handleAuthCallback(url);
-      }
+      createSessionFromUrl(url).catch(console.error);
     });
 
+    // Cold-start: app opened via deep link
     Linking.getInitialURL().then(url => {
-      if (url) handleAuthCallback(url);
+      if (url) createSessionFromUrl(url).catch(console.error);
     });
 
     return () => sub.remove();
@@ -93,23 +95,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = useCallback(async () => {
     if (Platform.OS === 'web') {
-      // Web: Supabase redirects the current tab after Google auth.
-      // The /auth/callback page (or _layout listener) picks up the session.
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
+        options: { redirectTo: `${window.location.origin}/auth/callback` },
       });
       if (error) throw error;
       return;
     }
 
-    // Native: use the deep-link URL for this environment.
-    // Expo Go  →  exp://192.168.x.x:8081/--/auth/callback
-    // Standalone → tennisraptor://auth/callback
-    const redirectTo = Linking.createURL('/auth/callback');
-    console.log('[auth] redirectTo:', redirectTo); // paste this in Supabase Redirect URLs if it's missing
+    console.log('[auth] redirectTo:', redirectTo); // add this to Supabase Redirect URLs
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -119,19 +113,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         queryParams: { access_type: 'offline', prompt: 'consent' },
       },
     });
-
     if (error) throw error;
     if (!data.url) throw new Error('No OAuth URL returned');
 
-    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo, {
-      showInRecents: false,
-    });
-
-    // iOS: result.type === 'success' with the full callback URL
-    if (result.type === 'success' && result.url) {
-      await handleAuthCallback(result.url);
+    if (Platform.OS === 'ios') {
+      // iOS: ASWebAuthenticationSession intercepta o redirect automaticamente
+      const res = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+      if (res.type === 'success') {
+        await createSessionFromUrl(res.url);
+      }
+    } else {
+      // Android: Chrome Custom Tabs pode não estar disponível.
+      // Abre no browser padrão — quando Supabase redirecionar para exp://,
+      // o Android dispara um Intent que reabre o Expo Go com a URL.
+      // O Linking.addEventListener acima recebe a URL e cria a sessão.
+      await Linking.openURL(data.url);
     }
-    // Android: the Linking listener above handles it (result.type === 'dismiss')
   }, []);
 
   const signOut = useCallback(async () => {
@@ -141,7 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, user: session?.user ?? null, loading, signUp, signIn, signInWithGoogle, signOut }}
+      value={{ session, user: session?.user ?? null, loading, redirectTo, signUp, signIn, signInWithGoogle, signOut }}
     >
       {children}
     </AuthContext.Provider>

@@ -19,11 +19,10 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     SplashScreen.hideAsync();
 
     const inAuth = segments[0] === 'auth';
-    const inCallback = segments[1] === 'callback'; // let /auth/callback finish its job first
 
     if (!session && !inAuth) {
       router.replace('/auth/login');
-    } else if (session && inAuth && !inCallback) {
+    } else if (session && inAuth) {
       router.replace('/(tabs)');
     }
   }, [session, loading, segments]);

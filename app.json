@@ -11,6 +11,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#0D0D0D"
     },
+    "newarchEnabled": true,
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.tennisraptor.app"
@@ -41,6 +42,7 @@
     "experiments": {
       "typedRoutes": true
     },
-    "scheme": "tennisraptor"
+    "scheme": "tennisraptor",
+    "newArchEnabled": true
   }
 }
