@@ -1,7 +1,9 @@
-export type Surface = 'clay' | 'hard' | 'grass' | 'carpet' | 'indoor';
+export type Surface = 'clay' | 'hard' | 'grass';
 export type MatchFormat = 'best_of_3' | 'best_of_5' | 'pro_set';
-export type TournamentFormat = 'round_robin' | 'single_elim' | 'groups';
-export type TournamentStatus = 'upcoming' | 'active' | 'completed';
+
+export type DominantHand = 'right' | 'left';
+export type PlayStyle = 'serve_volley' | 'defensive' | 'all_court' | 'offensive';
+export type Environment = 'outdoor' | 'indoor';
 
 export interface MatchSet {
   p1: number;
@@ -18,8 +20,6 @@ export interface Match {
   sets: MatchSet[];
   surface: Surface;
   format: MatchFormat;
-  tournamentId?: string;
-  groupId?: string;
   notes?: string;
   duration?: number;
   createdAt: string;
@@ -34,6 +34,32 @@ export interface Player {
   isMe?: boolean;
 }
 
+// Authenticated user on the platform — extended profile (onboarding fields).
+export interface Profile {
+  id: string;
+  name: string;
+  handle?: string;
+  avatarUrl?: string;
+  avatarColor?: string;
+
+  weightKg?: number;
+  heightCm?: number;
+  dominantHand?: DominantHand;
+
+  playStyle?: PlayStyle;
+  preferredEnvironment?: Environment;
+  preferredSurface?: Surface;
+  similarProId?: string;
+
+  regionState?: string;
+  regionCity?: string;
+
+  instagramUrl?: string;
+  linkedinUrl?: string;
+
+  onboardingCompleted: boolean;
+}
+
 export interface H2HStats {
   p1Wins: number;
   p2Wins: number;
@@ -43,38 +69,6 @@ export interface H2HStats {
   p2GamesWon: number;
   matches: Match[];
   lastMet?: string;
-}
-
-export interface Standing {
-  playerId: string;
-  wins: number;
-  losses: number;
-  setsWon: number;
-  setsLost: number;
-  gamesWon: number;
-  gamesLost: number;
-  points: number;
-  matchesPlayed: number;
-}
-
-export interface Tournament {
-  id: string;
-  name: string;
-  format: TournamentFormat;
-  surface: Surface;
-  startDate: string;
-  endDate?: string;
-  playerIds: string[];
-  status: TournamentStatus;
-  createdAt: string;
-}
-
-export interface Group {
-  id: string;
-  name: string;
-  memberIds: string[];
-  adminId: string | null;
-  createdAt: string;
 }
 
 // Live match tracking state — client-only, not persisted to DB until match ends.

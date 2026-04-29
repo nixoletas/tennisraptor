@@ -2,16 +2,14 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, Radius, Font } from '../../constants/theme';
-import { useMatchStore } from '../../stores/useMatchStore';
-import { usePlayerStore } from '../../stores/usePlayerStore';
-import { MatchCard } from '../../components/MatchCard';
-import { Surface } from '../../constants/types';
+import { Colors, Spacing, Radius, Font, SURFACE_LABELS } from '../constants/theme';
+import { useMatchStore } from '../stores/useMatchStore';
+import { usePlayerStore } from '../stores/usePlayerStore';
+import { MatchCard } from '../components/MatchCard';
+import { Surface } from '../constants/types';
 
-const SURFACES: (Surface | 'all')[] = ['all', 'clay', 'hard', 'grass', 'carpet', 'indoor'];
-const SURFACE_LABELS: Record<string, string> = {
-  all: 'Todas', clay: 'Saibro', hard: 'Duro', grass: 'Grama', carpet: 'Carpete', indoor: 'Indoor',
-};
+const SURFACES: (Surface | 'all')[] = ['all', 'clay', 'hard', 'grass'];
+const LABELS: Record<string, string> = { all: 'Todas', ...SURFACE_LABELS };
 
 export default function HistoryScreen() {
   const { matches, liveMatch } = useMatchStore();
@@ -25,7 +23,6 @@ export default function HistoryScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Live Banner */}
       {liveMatch && (
         <TouchableOpacity style={styles.liveBanner} onPress={() => router.push('/match/live')}>
           <View style={styles.liveDot} />
@@ -33,7 +30,6 @@ export default function HistoryScreen() {
         </TouchableOpacity>
       )}
 
-      {/* Filters */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -46,7 +42,7 @@ export default function HistoryScreen() {
             onPress={() => setSurface(s)}
           >
             <Text style={[styles.chipText, surface === s && styles.chipTextActive]}>
-              {SURFACE_LABELS[s]}
+              {LABELS[s]}
             </Text>
           </TouchableOpacity>
         ))}
@@ -61,7 +57,6 @@ export default function HistoryScreen() {
         )}
       </ScrollView>
 
-      {/* List */}
       <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
         {filtered.length === 0 ? (
           <View style={styles.empty}>
@@ -82,7 +77,6 @@ export default function HistoryScreen() {
         <View style={{ height: Spacing.xl }} />
       </ScrollView>
 
-      {/* FAB */}
       <TouchableOpacity style={styles.fab} onPress={() => router.push('/match/new')}>
         <Ionicons name="add" size={28} color={Colors.bg} />
       </TouchableOpacity>

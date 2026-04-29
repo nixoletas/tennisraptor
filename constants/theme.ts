@@ -15,7 +15,6 @@ export const Colors = {
   clay: '#C2693A',
   hard: '#4A7FC1',
   grass: '#4CAF50',
-  carpet: '#7B5EA7',
 };
 
 export const Spacing = {
@@ -50,6 +49,27 @@ export const SurfaceColors: Record<string, string> = {
   clay: Colors.clay,
   hard: Colors.hard,
   grass: Colors.grass,
-  carpet: Colors.carpet,
-  indoor: Colors.blue,
+};
+
+export const SURFACE_LABELS: Record<string, string> = {
+  clay: 'Saibro',
+  hard: 'Duro',
+  grass: 'Grama',
+};
+
+export const ENVIRONMENT_LABELS: Record<string, string> = {
+  outdoor: 'Outdoor',
+  indoor: 'Indoor',
+};
+
+export const HAND_LABELS: Record<string, string> = {
+  right: 'Destro',
+  left: 'Canhoto',
+};
+
+export const PLAY_STYLE_LABELS: Record<string, string> = {
+  serve_volley: 'Saque-Voleio',
+  defensive: 'Defensivo',
+  all_court: 'All-Court',
+  offensive: 'Ofensivo',
 };

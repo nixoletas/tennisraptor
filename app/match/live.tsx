@@ -3,15 +3,12 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Modal } fr
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Spacing, Radius, Font, SurfaceColors } from '../../constants/theme';
+import { Colors, Spacing, Radius, Font, SurfaceColors, SURFACE_LABELS } from '../../constants/theme';
 import { useMatchStore } from '../../stores/useMatchStore';
 import { usePlayerStore } from '../../stores/usePlayerStore';
 import { Surface, MatchFormat } from '../../constants/types';
 
-const SURFACES: Surface[] = ['clay', 'hard', 'grass', 'carpet', 'indoor'];
-const SURFACE_LABELS: Record<Surface, string> = {
-  clay: 'Saibro', hard: 'Duro', grass: 'Grama', carpet: 'Carpete', indoor: 'Indoor',
-};
+const SURFACES: Surface[] = ['clay', 'hard', 'grass'];
 
 export default function LiveMatchScreen() {
   const { liveMatch, startLive, awardGame, awardTiebreakPoint, finishLive, cancelLive } = useMatchStore();

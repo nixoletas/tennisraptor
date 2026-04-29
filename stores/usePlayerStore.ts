@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { Player, H2HStats, Match } from '../constants/types';
+import { Player, Profile, H2HStats, Match } from '../constants/types';
 import { supabase } from '../lib/supabase';
-import { newId, playerFromRow, PlayerRow } from '../lib/db';
+import { newId, playerFromRow, profileFromRow, PlayerRow, ProfileRow } from '../lib/db';
 
 const AVATAR_COLORS = [
   '#FF6B6B', '#FF9F0A', '#D4FF00', '#30D158', '#0A84FF',
@@ -15,9 +15,11 @@ function avatarColor(index: number) {
 interface PlayerStore {
   players: Player[];
   myPlayerId: string | null;
+  platformProfiles: Profile[];
   loaded: boolean;
 
   loadAll: (userId: string) => Promise<void>;
+  loadPlatform: (currentUserId: string) => Promise<void>;
   reset: () => void;
 
   addPlayer: (name: string, handle?: string) => Promise<Player | null>;
@@ -31,6 +33,7 @@ interface PlayerStore {
 export const usePlayerStore = create<PlayerStore>()((set, get) => ({
   players: [],
   myPlayerId: null,
+  platformProfiles: [],
   loaded: false,
 
   loadAll: async (userId) => {
@@ -50,7 +53,22 @@ export const usePlayerStore = create<PlayerStore>()((set, get) => ({
     set({ players, myPlayerId: me?.id ?? null, loaded: true });
   },
 
-  reset: () => set({ players: [], myPlayerId: null, loaded: false }),
+  loadPlatform: async (currentUserId) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id,name,handle,avatar_color,created_at')
+      .neq('id', currentUserId)
+      .order('name', { ascending: true });
+
+    if (error) {
+      console.error('[profiles] loadPlatform', error);
+      return;
+    }
+
+    set({ platformProfiles: (data as ProfileRow[]).map(profileFromRow) });
+  },
+
+  reset: () => set({ players: [], myPlayerId: null, platformProfiles: [], loaded: false }),
 
   addPlayer: async (name, handle) => {
     const userId = (await supabase.auth.getUser()).data.user?.id;

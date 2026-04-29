@@ -85,8 +85,6 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
       sets: match.sets,
       surface: match.surface,
       format: match.format,
-      tournament_id: match.tournamentId ?? null,
-      group_id: match.groupId ?? null,
       notes: match.notes ?? null,
       duration_minutes: match.duration ?? null,
     });
@@ -118,8 +116,6 @@ export const useMatchStore = create<MatchStore>()((set, get) => ({
     if (updates.format !== undefined) patch.format = updates.format;
     if (updates.notes !== undefined) patch.notes = updates.notes ?? null;
     if (updates.duration !== undefined) patch.duration_minutes = updates.duration ?? null;
-    if (updates.tournamentId !== undefined) patch.tournament_id = updates.tournamentId ?? null;
-    if (updates.groupId !== undefined) patch.group_id = updates.groupId ?? null;
 
     const { error } = await supabase.from('matches').update(patch).eq('id', id);
     if (error) {

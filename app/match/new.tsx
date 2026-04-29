@@ -2,16 +2,13 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, Radius, Font, SurfaceColors } from '../../constants/theme';
+import { Colors, Spacing, Radius, Font, SurfaceColors, SURFACE_LABELS } from '../../constants/theme';
 import { useMatchStore } from '../../stores/useMatchStore';
 import { usePlayerStore } from '../../stores/usePlayerStore';
 import { SetScoreInput } from '../../components/SetScoreInput';
 import { Surface, MatchFormat, MatchSet } from '../../constants/types';
 
-const SURFACES: Surface[] = ['clay', 'hard', 'grass', 'carpet', 'indoor'];
-const SURFACE_LABELS: Record<Surface, string> = {
-  clay: 'Saibro', hard: 'Duro', grass: 'Grama', carpet: 'Carpete', indoor: 'Indoor',
-};
+const SURFACES: Surface[] = ['clay', 'hard', 'grass'];
 
 function determineWinner(sets: MatchSet[], p1Id: string, p2Id: string): string | null {
   if (sets.length === 0) return null;

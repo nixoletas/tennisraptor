@@ -65,9 +65,9 @@ export default function HomeScreen() {
             <Ionicons name="people-outline" size={24} color={Colors.text} />
             <Text style={styles.actionLabel}>Adversários</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/tournaments')}>
-            <Ionicons name="trophy-outline" size={24} color={Colors.text} />
-            <Text style={styles.actionLabel}>Torneios</Text>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/history')}>
+            <Ionicons name="time-outline" size={24} color={Colors.text} />
+            <Text style={styles.actionLabel}>Histórico</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -89,7 +89,7 @@ export default function HomeScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Últimas Partidas</Text>
-            <TouchableOpacity onPress={() => router.push('/history')}>
+            <TouchableOpacity onPress={() => router.push('/history' as any)}>
               <Text style={styles.seeAll}>Ver todas</Text>
             </TouchableOpacity>
           </View>

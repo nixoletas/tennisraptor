@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useLocalSearchParams, router, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, Radius, Font, SurfaceColors } from '../../constants/theme';
+import { Colors, Spacing, Radius, Font, SurfaceColors, SURFACE_LABELS } from '../../constants/theme';
 import { useMatchStore } from '../../stores/useMatchStore';
 import { usePlayerStore } from '../../stores/usePlayerStore';
 
@@ -24,10 +24,6 @@ export default function MatchDetailScreen() {
   const p2 = players.find(p => p.id === match.player2Id);
   const winner = players.find(p => p.id === match.winnerId);
   const surfaceColor = SurfaceColors[match.surface] ?? Colors.textSecondary;
-
-  const SURFACE_LABELS: Record<string, string> = {
-    clay: 'Saibro', hard: 'Duro', grass: 'Grama', carpet: 'Carpete', indoor: 'Indoor',
-  };
 
   const handleDelete = () => {
     Alert.alert('Excluir Partida', 'Tem certeza? Esta ação não pode ser desfeita.', [

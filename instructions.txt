@@ -1,0 +1,12 @@
+remova tournaments. 3 tabs. se precisar de mais tabs crie um menu hamburger no canto superior esquerdo, minimizando poluição visual. a autenticação está estranha (está  
+  pulando pra home mesmo sem autenticar). o onboarding deve primeiro entrar com google ou com email, após entrar faz perguntas das características do player (peso,        
+  altura, mão boa, quadra preferida, estilo de jogo (saque voleio, defensivo, all court, ofensivo), avatar (se logar com google já busca o avatar do google mas se o       
+  player quiser trocar ele pode), região (estado, cidade), superfície preferida, jogador que se assemelha ao seu jogo - trazendo jogadores profissionais pro player        
+  selecionar (criar interação social). depois do cadastro inicial, sem ser no onboarding, o player deve poder adicionar links de midia social (instagram, linkedin) até    
+  porque tenis é um esporte de networking também. na tab de players o filtro principal deve ser players próximos de mim, ou seja que selecionaram a mesma região, se não   
+  achar vai pras regiões próximas. fazer uma limpeza total do banco e criar um novo script sql pois o banco está com tabelas de outro sistema.
+
+
+2. superfície (saibro, duro, grama)
+3. pode dropar tudo
+4. 
