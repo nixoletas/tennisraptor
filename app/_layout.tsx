@@ -88,6 +88,7 @@ export default function RootLayout() {
             <Stack.Screen name="match/live" options={{ title: 'Ao Vivo', headerBackVisible: false }} />
             <Stack.Screen name="match/[id]" options={{ title: 'Partida' }} />
             <Stack.Screen name="player/[id]" options={{ title: 'Jogador' }} />
+            <Stack.Screen name="post/[id]" options={{ title: 'Post' }} />
             <Stack.Screen name="history" options={{ title: 'Histórico' }} />
             <Stack.Screen name="pending" options={{ title: 'Aprovações' }} />
             <Stack.Screen name="about" options={{ title: 'Sobre' }} />

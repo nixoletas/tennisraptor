@@ -72,6 +72,45 @@ export interface H2HStats {
   lastMet?: string;
 }
 
+// ----- Social feed -----
+export type ReactionEmoji = 'fire' | 'cry' | 'goat';
+
+export const REACTION_EMOJIS: Record<ReactionEmoji, string> = {
+  fire: '🔥',
+  cry: '😭',
+  goat: '🐐',
+};
+
+export interface PostReaction {
+  id: string;
+  postId: string;
+  userId: string;
+  emoji: ReactionEmoji;
+  createdAt: string;
+}
+
+export interface PostComment {
+  id: string;
+  postId: string;
+  authorId: string;
+  body: string;
+  mentions: string[];
+  createdAt: string;
+}
+
+// Posts são criados via trigger no DB ao confirmar match.
+// reactions/comments são hidratados no client via store.
+export interface Post {
+  id: string;
+  matchId: string;
+  authorId: string;
+  caption?: string;
+  bannerUrl?: string;
+  createdAt: string;
+  reactions: PostReaction[];
+  comments: PostComment[];
+}
+
 // Live match tracking state — client-only, not persisted to DB until match ends.
 export interface LiveMatchState {
   matchId: string;

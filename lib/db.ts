@@ -2,6 +2,7 @@ import * as Crypto from 'expo-crypto';
 import {
   Match, Profile, MatchSet, Surface, MatchFormat, MatchStatus,
   DominantHand, PlayStyle, Environment,
+  Post, PostReaction, PostComment, ReactionEmoji,
 } from '../constants/types';
 
 export function newId(): string {
@@ -95,6 +96,67 @@ export function matchFromRow(r: MatchRow): Match {
     rejectedAt: r.rejected_at ?? undefined,
     notes: r.notes ?? undefined,
     duration: r.duration_minutes ?? undefined,
+    createdAt: r.created_at,
+  };
+}
+
+// ---- Social feed rows ----
+export type PostRow = {
+  id: string;
+  match_id: string;
+  author_id: string;
+  caption: string | null;
+  banner_url: string | null;
+  created_at: string;
+};
+
+export type PostReactionRow = {
+  id: string;
+  post_id: string;
+  user_id: string;
+  emoji: ReactionEmoji;
+  created_at: string;
+};
+
+export type PostCommentRow = {
+  id: string;
+  post_id: string;
+  author_id: string;
+  body: string;
+  mentions: string[] | null;
+  created_at: string;
+};
+
+export function postFromRow(r: PostRow): Post {
+  return {
+    id: r.id,
+    matchId: r.match_id,
+    authorId: r.author_id,
+    caption: r.caption ?? undefined,
+    bannerUrl: r.banner_url ?? undefined,
+    createdAt: r.created_at,
+    reactions: [],
+    comments: [],
+  };
+}
+
+export function reactionFromRow(r: PostReactionRow): PostReaction {
+  return {
+    id: r.id,
+    postId: r.post_id,
+    userId: r.user_id,
+    emoji: r.emoji,
+    createdAt: r.created_at,
+  };
+}
+
+export function commentFromRow(r: PostCommentRow): PostComment {
+  return {
+    id: r.id,
+    postId: r.post_id,
+    authorId: r.author_id,
+    body: r.body,
+    mentions: r.mentions ?? [],
     createdAt: r.created_at,
   };
 }
