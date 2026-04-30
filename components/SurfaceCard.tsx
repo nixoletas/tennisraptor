@@ -1,40 +1,33 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, Image, TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Radius, Font, Spacing } from '../constants/theme';
 import { Surface } from '../constants/types';
 
-// Tematização inspirada nos Slams:
-// Saibro = Roland Garros (laranja terracota), Duro = US Open (azul profundo),
-// Grama = Wimbledon (verde + roxo).
 const SURFACE_THEMES: Record<Surface, {
-  gradient: readonly [string, string, ...string[]];
+  imageUri: string;
+  fallbackColor: string;
   label: string;
   slam: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  ballColor: string;
 }> = {
   clay: {
-    gradient: ['#D2691E', '#A0522D', '#8B4513'] as const,
+    imageUri: 'https://wgefmfktuqztkuyhtigg.supabase.co/storage/v1/object/public/content/saibro.jpeg',
+    fallbackColor: '#A0522D',
     label: 'Saibro',
     slam: 'Roland Garros',
-    icon: 'leaf',
-    ballColor: '#FFE57F',
   },
   hard: {
-    gradient: ['#0A4D8C', '#1565C0', '#42A5F5'] as const,
+    // TODO: substituir pela URL da quadra dura quando disponível
+    imageUri: 'https://wgefmfktuqztkuyhtigg.supabase.co/storage/v1/object/public/content/duro.jpeg',
+    fallbackColor: '#1565C0',
     label: 'Duro',
     slam: 'US Open · ATP',
-    icon: 'square',
-    ballColor: '#D4FF00',
   },
   grass: {
-    gradient: ['#4A148C', '#2E7D32', '#66BB6A'] as const,
+    imageUri: 'https://wgefmfktuqztkuyhtigg.supabase.co/storage/v1/object/public/content/grama.jpeg',
+    fallbackColor: '#2E7D32',
     label: 'Grama',
     slam: 'Wimbledon',
-    icon: 'flower',
-    ballColor: '#FFFFFF',
   },
 };
 
@@ -61,23 +54,21 @@ export function SurfaceCard({ surface, selected, onPress, variant = 'tile', styl
         styles.card,
         compact && styles.cardCompact,
         selected && styles.cardSelected,
+        { backgroundColor: theme.fallbackColor },
         style,
       ]}
       activeOpacity={0.85}
     >
-      <LinearGradient
-        colors={theme.gradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
+      {/* Imagem de fundo opacity 40% */}
+      <Image
+        source={{ uri: theme.imageUri }}
+        style={styles.bgImage}
+        resizeMode="cover"
       />
       {/* Overlay escurece pra texto ficar legível */}
       <View style={styles.overlay} />
 
       <View style={[styles.content, compact && styles.contentCompact]}>
-        <View style={styles.iconWrap}>
-          <Ionicons name={theme.icon} size={compact ? 18 : 24} color={theme.ballColor} />
-        </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.label, compact && styles.labelCompact]}>{theme.label}</Text>
           {!compact && <Text style={styles.slam}>{theme.slam}</Text>}
@@ -100,21 +91,22 @@ const styles = StyleSheet.create({
   },
   cardCompact: { minHeight: 56 },
   cardSelected: { borderColor: Colors.accent },
+  bgImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+    opacity: 0.4,
+  },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#00000038',
+    backgroundColor: '#00000050',
   },
   content: {
     flex: 1, padding: Spacing.md,
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
   },
-  contentCompact: { padding: Spacing.sm },
-  iconWrap: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: '#FFFFFF20',
-    alignItems: 'center', justifyContent: 'center',
-  },
+  contentCompact: { padding: Spacing.sm, justifyContent: 'center' },
   label: { fontSize: Font.lg, fontWeight: '900', color: Colors.text, letterSpacing: -0.3 },
-  labelCompact: { fontSize: Font.md },
+  labelCompact: { fontSize: Font.md, textAlign: 'center' },
   slam: { fontSize: Font.xs, color: '#FFFFFFCC', fontWeight: '600', letterSpacing: 0.5 },
 });

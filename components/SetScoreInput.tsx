@@ -1,29 +1,118 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { Colors, Radius, Spacing, Font } from '../constants/theme';
-import { MatchSet } from '../constants/types';
+import { MatchSet, Surface } from '../constants/types';
 
 interface Props {
   sets: MatchSet[];
   onChange: (sets: MatchSet[]) => void;
   maxSets?: number;
+  surface?: Surface;
+  p1Name?: string;
+  p2Name?: string;
 }
 
-function ScoreButton({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+// Temas visuais por superfície — inspirados nos placarões reais.
+const SCOREBOARD_THEMES: Record<Surface, {
+  boardBg: string;
+  rowBg: string;
+  rowBgAlt: string;
+  nameText: string;
+  nameBg: string;
+  cellBg: string;
+  cellText: string;
+  activeCellBg: string;
+  activeCellText: string;
+  headerBg: string;
+  headerText: string;
+  addBtnColor: string;
+  border: string;
+}> = {
+  // Roland Garros: fundo terracota escuro, verde floresta, placar em branco
+  clay: {
+    boardBg: '#214732',
+    rowBg: '#214732',
+    rowBgAlt: '#214732',
+    nameBg: '#214732',
+    nameText: '#FFFFFF',
+    cellBg: '#214732',
+    cellText: '#669470',
+    activeCellBg: '#214732',
+    activeCellText: '#FFFFFF',
+    headerBg: '#215732',
+    headerText: '#FFFFFF',
+    addBtnColor: '#FFFFFF',
+    border: '#214732',
+  },
+  // Wimbledon: verde escuro + roxo, células brancas (look icônico)
+  grass: {
+    boardBg: '#0D1F0D',
+    rowBg: '#122112',
+    rowBgAlt: '#183018',
+    nameBg: '#122112',
+    nameText: '#FFFFFF',
+    cellBg: '#122112',
+    cellText: '#FFFFFF',
+    activeCellBg: '#4E007B',
+    activeCellText: '#FFFFFF',
+    headerBg: '#0A180A',
+    headerText: '#A5D6A7',
+    addBtnColor: '#FFFFFF',
+    border: '#4A148C40',
+  },
+  // US Open / ATP: azul marinho, células cinza-azuladas
+  hard: {
+    boardBg: '#080F2A',
+    rowBg: '#0D1B4B',
+    rowBgAlt: '#112060',
+    nameBg: '#0D1B4B',
+    nameText: '#FFFFFF',
+    cellBg: '#1E2F6A',
+    cellText: '#FFFFFF',
+    activeCellBg: '#4FC3F7',
+    activeCellText: '#080F2A',
+    headerBg: '#060C1F',
+    headerText: '#4FC3F7',
+    addBtnColor: '#4FC3F7',
+    border: '#4FC3F740',
+  },
+};
+
+function ScoreCell({
+  value,
+  onChange,
+  cellBg,
+  cellText,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  cellBg: string;
+  cellText: string;
+}) {
+  const handleChange = (text: string) => {
+    if (text === '') { onChange(0); return; }
+    const n = parseInt(text, 10);
+    if (!isNaN(n) && n >= 0 && n <= 99) onChange(n);
+  };
+
   return (
-    <View style={styles.scoreControl}>
-      <TouchableOpacity onPress={() => onChange(Math.max(0, value - 1))} style={styles.btn}>
-        <Text style={styles.btnText}>−</Text>
-      </TouchableOpacity>
-      <Text style={styles.scoreValue}>{value}</Text>
-      <TouchableOpacity onPress={() => onChange(value + 1)} style={styles.btn}>
-        <Text style={styles.btnText}>+</Text>
-      </TouchableOpacity>
-    </View>
+    <TextInput
+      style={[styles.cell, { backgroundColor: cellBg, color: cellText }]}
+      value={value === 0 ? '' : String(value)}
+      onChangeText={handleChange}
+      keyboardType="number-pad"
+      maxLength={2}
+      placeholder="0"
+      placeholderTextColor={cellText + '60'}
+      selectTextOnFocus
+      textAlign="center"
+    />
   );
 }
 
-export function SetScoreInput({ sets, onChange, maxSets = 3 }: Props) {
+export function SetScoreInput({ sets, onChange, maxSets = 3, surface = 'hard', p1Name, p2Name }: Props) {
+  const t = SCOREBOARD_THEMES[surface];
+
   const update = (i: number, key: 'p1' | 'p2', v: number) => {
     const next = [...sets];
     next[i] = { ...next[i], [key]: v };
@@ -38,121 +127,159 @@ export function SetScoreInput({ sets, onChange, maxSets = 3 }: Props) {
     onChange(sets.filter((_, idx) => idx !== i));
   };
 
+  // Detecta set vencedor por jogador
+  const setWinner = (s: MatchSet): 'p1' | 'p2' | null => {
+    if (s.p1 > s.p2) return 'p1';
+    if (s.p2 > s.p1) return 'p2';
+    return null;
+  };
+
   return (
-    <View style={styles.container}>
-      <View style={styles.headerRow}>
-        <Text style={styles.colLabel}>P1</Text>
-        <Text style={styles.colLabel}>P2</Text>
+    <View style={[styles.board, { backgroundColor: t.boardBg, borderColor: t.border }]}>
+      {/* Header: SET 1 / SET 2 / SET 3 */}
+      <View style={[styles.headerRow, { backgroundColor: t.headerBg }]}>
+        <View style={styles.nameCol} />
+        {sets.map((_, i) => (
+          <View key={i} style={styles.setHeaderCell}>
+            <Text style={[styles.setHeaderText, { color: t.headerText }]}>S{i + 1}</Text>
+            {sets.length > 1 && (
+              <TouchableOpacity onPress={() => removeSet(i)} hitSlop={8}>
+                <Text style={[styles.removeX, { color: t.headerText + 'AA' }]}>✕</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ))}
+        {sets.length < maxSets && (
+          <TouchableOpacity style={styles.addSetBtn} onPress={addSet}>
+            <Text style={[styles.addSetText, { color: t.addBtnColor }]}>+S</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {sets.map((s, i) => (
-        <View key={i} style={styles.setRow}>
-          <Text style={styles.setLabel}>SET {i + 1}</Text>
-          <ScoreButton value={s.p1} onChange={v => update(i, 'p1', v)} />
-          <Text style={styles.dash}>—</Text>
-          <ScoreButton value={s.p2} onChange={v => update(i, 'p2', v)} />
-          <TouchableOpacity onPress={() => removeSet(i)} style={styles.removeBtn}>
-            <Text style={styles.removeBtnText}>✕</Text>
-          </TouchableOpacity>
+      {/* P1 row */}
+      <View style={[styles.playerRow, { backgroundColor: t.rowBg }]}>
+        <View style={[styles.nameCol, { backgroundColor: t.nameBg }]}>
+          <Text style={[styles.playerName, { color: t.nameText }]} numberOfLines={1}>
+            {p1Name ?? 'P1'}
+          </Text>
         </View>
-      ))}
+        {sets.map((s, i) => {
+          const won = setWinner(s) === 'p1';
+          return (
+            <ScoreCell
+              key={i}
+              value={s.p1}
+              onChange={v => update(i, 'p1', v)}
+              cellBg={won ? t.activeCellBg : t.cellBg}
+              cellText={won ? t.activeCellText : t.cellText}
+            />
+          );
+        })}
+        {sets.length < maxSets && <View style={styles.addSetBtn} />}
+      </View>
 
-      {sets.length < maxSets && (
-        <TouchableOpacity style={styles.addBtn} onPress={addSet}>
-          <Text style={styles.addBtnText}>+ SET</Text>
-        </TouchableOpacity>
-      )}
+      {/* Divider */}
+      <View style={[styles.divider, { backgroundColor: t.border }]} />
+
+      {/* P2 row */}
+      <View style={[styles.playerRow, { backgroundColor: t.rowBgAlt }]}>
+        <View style={[styles.nameCol, { backgroundColor: t.rowBgAlt }]}>
+          <Text style={[styles.playerName, { color: t.nameText }]} numberOfLines={1}>
+            {p2Name ?? 'P2'}
+          </Text>
+        </View>
+        {sets.map((s, i) => {
+          const won = setWinner(s) === 'p2';
+          return (
+            <ScoreCell
+              key={i}
+              value={s.p2}
+              onChange={v => update(i, 'p2', v)}
+              cellBg={won ? t.activeCellBg : t.cellBg}
+              cellText={won ? t.activeCellText : t.cellText}
+            />
+          );
+        })}
+        {sets.length < maxSets && <View style={styles.addSetBtn} />}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    gap: Spacing.sm,
+  board: {
+    borderRadius: Radius.md,
+    overflow: 'hidden',
+    borderWidth: 1,
   },
+
   headerRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: Spacing.xl,
-    paddingRight: 32,
+    alignItems: 'center',
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.xs,
   },
-  colLabel: {
-    fontSize: Font.xs,
-    color: Colors.textSecondary,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    width: 80,
-    textAlign: 'center',
-  },
-  setRow: {
+
+  playerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: Colors.card,
-    borderRadius: Radius.md,
-    padding: Spacing.sm,
-  },
-  setLabel: {
-    fontSize: Font.xs,
-    color: Colors.textSecondary,
-    fontWeight: '700',
-    width: 40,
-    letterSpacing: 0.5,
-  },
-  scoreControl: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.xs,
     gap: Spacing.xs,
+  },
+
+  divider: {
+    height: 1,
+  },
+
+  nameCol: {
     flex: 1,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.sm,
     justifyContent: 'center',
   },
-  btn: {
-    width: 32,
-    height: 32,
-    borderRadius: Radius.sm,
-    backgroundColor: Colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnText: {
-    fontSize: Font.lg,
-    color: Colors.text,
-    fontWeight: '700',
-  },
-  scoreValue: {
-    fontSize: Font.xl,
-    fontWeight: '800',
-    color: Colors.text,
-    minWidth: 28,
-    textAlign: 'center',
-  },
-  dash: {
-    fontSize: Font.md,
-    color: Colors.textTertiary,
-  },
-  removeBtn: {
-    width: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  removeBtnText: {
-    fontSize: Font.xs,
-    color: Colors.textTertiary,
-  },
-  addBtn: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.md,
-    padding: Spacing.sm,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderStyle: 'dashed',
-  },
-  addBtnText: {
+  playerName: {
     fontSize: Font.sm,
-    color: Colors.textSecondary,
-    fontWeight: '700',
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+
+  setHeaderCell: {
+    width: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 3,
+    paddingVertical: 4,
+  },
+  setHeaderText: {
+    fontSize: Font.xs,
+    fontWeight: '900',
     letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  removeX: {
+    fontSize: 9,
+    fontWeight: '700',
+  },
+
+  cell: {
+    width: 52,
+    height: 44,
+    borderRadius: Radius.sm,
+    fontSize: Font.xl,
+    fontWeight: '900',
+  },
+
+  addSetBtn: {
+    width: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addSetText: {
+    fontSize: Font.xs,
+    fontWeight: '900',
+    letterSpacing: 0.5,
   },
 });

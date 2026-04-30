@@ -92,18 +92,6 @@ export default function NewMatchScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      {/* Hero com gradient da superfície */}
-      <View style={styles.hero}>
-        <LinearGradient
-          colors={theme.gradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-        <View style={styles.heroOverlay} />
-        <Text style={styles.heroSlam}>{theme.slam.toUpperCase()}</Text>
-        <Text style={styles.heroTitle}>{theme.label}</Text>
-      </View>
 
       {/* Modo */}
       <View style={styles.section}>
@@ -154,6 +142,8 @@ export default function NewMatchScreen() {
               surface={s}
               selected={surface === s}
               onPress={() => setSurface(s)}
+              variant="compact"
+              style={styles.surfaceItem}
             />
           ))}
         </View>
@@ -162,14 +152,13 @@ export default function NewMatchScreen() {
       {/* Score */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Placar</Text>
-        {p1 && p2 && (
-          <View style={[styles.scoreHeader, { borderColor: theme.gradient[0] }]}>
-            <Text style={styles.scorePlayer} numberOfLines={1}>{p1.name}</Text>
-            <Text style={styles.scoreDash}>×</Text>
-            <Text style={[styles.scorePlayer, styles.right]} numberOfLines={1}>{p2.name}</Text>
-          </View>
-        )}
-        <SetScoreInput sets={sets} onChange={setSets} />
+        <SetScoreInput
+          sets={sets}
+          onChange={setSets}
+          surface={surface}
+          p1Name={p1?.name}
+          p2Name={p2?.name}
+        />
         {winnerId && (
           <View style={styles.winnerBanner}>
             <Ionicons name="trophy" size={16} color={Colors.accent} />
@@ -450,17 +439,9 @@ const styles = StyleSheet.create({
   slotHandle: { fontSize: Font.xs, color: Colors.textSecondary },
   vs: { fontSize: Font.lg, fontWeight: '900', color: Colors.textTertiary, textAlign: 'center', letterSpacing: 2 },
 
-  surfaceList: { gap: Spacing.sm },
+  surfaceList: { flexDirection: 'row', gap: Spacing.sm },
+  surfaceItem: { flex: 1, minHeight: 76 },
 
-  scoreHeader: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md,
-    borderRadius: Radius.md, borderLeftWidth: 4,
-    backgroundColor: Colors.card,
-  },
-  scorePlayer: { flex: 1, fontSize: Font.md, color: Colors.text, fontWeight: '800' },
-  scoreDash: { fontSize: Font.md, color: Colors.textTertiary },
-  right: { textAlign: 'right' },
   winnerBanner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs,
     backgroundColor: Colors.accent + '20', borderRadius: Radius.md,
