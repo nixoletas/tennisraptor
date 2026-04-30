@@ -53,3 +53,64 @@ TypeScript limpo. Fase 1 concluída.
 
   Qual da fase 2 quer atacar primeiro? Recomendação minha: #1 (profile-based players) primeiro porque é fundação pra #2 e #3. Depois #2 (approval flow) que destrava #3
   (feed). Social media OAuth e doubles ficam por último.
+
+
+  #1 Profile-based players:                                                                                                                                                
+  - players table morta. Matches referenciam profiles.id direto. Constraint: P1 ≠ P2.                                                                                      
+  - usePlayerStore deletado. Tudo opera em profiles via useProfileStore.me + nearby.
+  - lib/h2h.ts novo: computeH2H + computeRivalryProfile (kryptonita/freguês — pra fase futura).                                                                            
+  - Match register: picker = me + plataforma. Sem auto-create de roster. Sem botão "Adicionar jogador" no players tab (todos já são reais).                                
+  - Live match: chips com profiles + avatar URL.                                                                                                                           
+  - Player detail (/player/[id]): mostra qualquer profile, opponent selector com todos da plataforma.
+  - Components (MatchCard, PlayerCard) recebem profiles: Map e myId em vez de array de Player.
+  - RLS de matches: visível pra owner OU P1 OU P2. loadAll puxa todas as três.
+
+  #2 Match approval flow:
+  - matches.status = pending | confirmed | rejected. Default pending no insert.
+  - Auto-confirma se owner é o próprio P2 (edge case).
+  - approveMatch(id) e rejectMatch(id) no store. RLS permite só ao P2 (apenas mudando status).
+  - /pending screen: lista matches onde sou P2 com status=pending. Card mostra: adversário (P1), placar, superfície, "Você venceu/perdeu", botões Rejeitar (vermelho) +
+  Aprovar (verde acento).
+  - Drawer ganha item "Aprovações" com badge laranja contando pendentes.
+  - Home banner laranja ("X partidas pra aprovar") quando pendingCount > 0.
+  - MatchCard badges: PENDENTE (laranja) ou REJEITADA (vermelho) substituem W/L até confirmar.
+  - Stats e histórico só contam confirmed — gym-rats vibe: ninguém ganha rating fantasma. Pending não aparece no feed/histórico.
+
+  Vantagens dessa arquitetura:
+  - Schema simples: 1 source of truth (profiles), sem duplicação.
+  - Match insert por P1 fica visível pro P2 imediatamente via RLS (P2 pode dar SELECT).
+  - /pending screen: lista matches onde sou P2 com status=pending. Card mostra: adversário (P1), placar, superfície, "Você venceu/perdeu", botões Rejeitar (vermelho) +
+  Aprovar (verde acento).
+  - Drawer ganha item "Aprovações" com badge laranja contando pendentes.
+  - Home banner laranja ("X partidas pra aprovar") quando pendingCount > 0.
+  - MatchCard badges: PENDENTE (laranja) ou REJEITADA (vermelho) substituem W/L até confirmar.
+  - approveMatch(id) e rejectMatch(id) no store. RLS permite só ao P2 (apenas mudando status).
+  - /pending screen: lista matches onde sou P2 com status=pending. Card mostra: adversário (P1), placar, superfície, "Você venceu/perdeu", botões Rejeitar (vermelho) +
+   Aprovar (verde acento).
+  - Drawer ganha item "Aprovações" com badge laranja contando pendentes.
+  - Auto-confirma se owner é o próprio P2 (edge case).
+  - approveMatch(id) e rejectMatch(id) no store. RLS permite só ao P2 (apenas mudando status).
+  - /pending screen: lista matches onde sou P2 com status=pending. Card mostra: adversário (P1), placar, superfície, "Você venceu/perdeu", botões Rejeitar (vermelho) +
+   Aprovar (verde acento).
+  - Drawer ganha item "Aprovações" com badge laranja contando pendentes.
+  - Home banner laranja ("X partidas pra aprovar") quando pendingCount > 0.
+  - MatchCard badges: PENDENTE (laranja) ou REJEITADA (vermelho) substituem W/L até confirmar.
+  - Stats e histórico só contam confirmed — gym-rats vibe: ninguém ganha rating fantasma. Pending não aparece no feed/histórico.
+
+  Vantagens dessa arquitetura:
+  - Schema simples: 1 source of truth (profiles), sem duplicação.
+  - Match insert por P1 fica visível pro P2 imediatamente via RLS (P2 pode dar SELECT).
+  - Confiabilidade do score: precisa de 2 dedos no botão.
+
+  Limitações conhecidas:
+  - Sem push notification — P2 só vê pending se abrir o app + drawer/home. Próxima fase: expo-notifications + Supabase realtime ou edge function.
+  - Live match também salva como pending — talvez melhor pedir confirmação real-time durante o jogo, mas escopo extra. Por ora vai como pending.
+  - Não tem cancelar uma aprovação. Match rejected fica perdido. Sem desfazer.
+
+  Próxima fase recomendada: #3 Feed social — agora que match approval existe, posts auto-criados ao confirmar match (foto banner + score + mentions @P1 vs @P2).
+  Reactions 🔥😭🐐. Comments com mentions. Vira a home. Quer atacar?
+
+✻ Cooked for 11m 15s
+
+※ recap: Building TennisRaptor (social tennis app, profile-based players + match approval flow just shipped). Next: run migrations 0005 and 0006 in Supabase, then     
+  decide if we move to fase 3 (feed social with posts/reactions/comments).
