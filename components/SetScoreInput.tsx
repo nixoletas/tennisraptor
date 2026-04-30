@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Radius, Spacing, Font } from '../constants/theme';
 import { MatchSet, Surface } from '../constants/types';
 
@@ -10,15 +11,16 @@ interface Props {
   surface?: Surface;
   p1Name?: string;
   p2Name?: string;
+  onPressP1?: () => void;
+  onPressP2?: () => void;
 }
 
-// Temas visuais por superfície — inspirados nos placarões reais.
 const SCOREBOARD_THEMES: Record<Surface, {
   boardBg: string;
   rowBg: string;
   rowBgAlt: string;
   nameText: string;
-  nameBg: string;
+  namePlaceholder: string;
   cellBg: string;
   cellText: string;
   activeCellBg: string;
@@ -27,8 +29,8 @@ const SCOREBOARD_THEMES: Record<Surface, {
   headerText: string;
   addBtnColor: string;
   border: string;
+  divider: string;
 }> = {
-  // Roland Garros: fundo terracota escuro, verde floresta, placar em branco
   clay: {
     boardBg: '#214732',
     rowBg: '#214732',
@@ -79,15 +81,9 @@ const SCOREBOARD_THEMES: Record<Surface, {
 };
 
 function ScoreCell({
-  value,
-  onChange,
-  cellBg,
-  cellText,
+  value, onChange, cellBg, cellText,
 }: {
-  value: number;
-  onChange: (v: number) => void;
-  cellBg: string;
-  cellText: string;
+  value: number; onChange: (v: number) => void; cellBg: string; cellText: string;
 }) {
   const handleChange = (text: string) => {
     if (text === '') { onChange(0); return; }
@@ -103,14 +99,47 @@ function ScoreCell({
       keyboardType="number-pad"
       maxLength={2}
       placeholder="0"
-      placeholderTextColor={cellText + '60'}
+      placeholderTextColor={cellText + '50'}
       selectTextOnFocus
       textAlign="center"
     />
   );
 }
 
-export function SetScoreInput({ sets, onChange, maxSets = 3, surface = 'hard', p1Name, p2Name }: Props) {
+function NameCell({
+  name, onPress, rowBg, nameText, namePlaceholder,
+}: {
+  name?: string; onPress?: () => void;
+  rowBg: string; nameText: string; namePlaceholder: string;
+}) {
+  const selected = !!name;
+  return (
+    <TouchableOpacity
+      style={[styles.nameCol, { backgroundColor: rowBg }]}
+      onPress={onPress}
+      activeOpacity={onPress ? 0.7 : 1}
+      disabled={!onPress}
+    >
+      {selected ? (
+        <Text style={[styles.playerName, { color: nameText }]} numberOfLines={1}>
+          {name}
+        </Text>
+      ) : (
+        <View style={styles.namePlaceholderRow}>
+          <Ionicons name="person-add-outline" size={14} color="white" />
+          <Text style={[styles.namePlaceholderText, { color: 'white' }]}>
+            Selecionar
+          </Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+}
+
+export function SetScoreInput({
+  sets, onChange, maxSets = 3, surface = 'hard',
+  p1Name, p2Name, onPressP1, onPressP2,
+}: Props) {
   const t = SCOREBOARD_THEMES[surface];
 
   const update = (i: number, key: 'p1' | 'p2', v: number) => {
@@ -127,7 +156,6 @@ export function SetScoreInput({ sets, onChange, maxSets = 3, surface = 'hard', p
     onChange(sets.filter((_, idx) => idx !== i));
   };
 
-  // Detecta set vencedor por jogador
   const setWinner = (s: MatchSet): 'p1' | 'p2' | null => {
     if (s.p1 > s.p2) return 'p1';
     if (s.p2 > s.p1) return 'p2';
@@ -136,7 +164,7 @@ export function SetScoreInput({ sets, onChange, maxSets = 3, surface = 'hard', p
 
   return (
     <View style={[styles.board, { backgroundColor: t.boardBg, borderColor: t.border }]}>
-      {/* Header: SET 1 / SET 2 / SET 3 */}
+      {/* Header */}
       <View style={[styles.headerRow, { backgroundColor: t.headerBg }]}>
         <View style={styles.nameCol} />
         {sets.map((_, i) => (
@@ -144,63 +172,69 @@ export function SetScoreInput({ sets, onChange, maxSets = 3, surface = 'hard', p
             <Text style={[styles.setHeaderText, { color: t.headerText }]}>S{i + 1}</Text>
             {sets.length > 1 && (
               <TouchableOpacity onPress={() => removeSet(i)} hitSlop={8}>
-                <Text style={[styles.removeX, { color: t.headerText + 'AA' }]}>✕</Text>
+                <Text style={[styles.removeX, { color: t.headerText + '99' }]}>✕</Text>
               </TouchableOpacity>
             )}
           </View>
         ))}
-        {sets.length < maxSets && (
+        {sets.length < maxSets ? (
           <TouchableOpacity style={styles.addSetBtn} onPress={addSet}>
             <Text style={[styles.addSetText, { color: t.addBtnColor }]}>+S</Text>
           </TouchableOpacity>
+        ) : (
+          <View style={styles.addSetBtn} />
         )}
       </View>
 
       {/* P1 row */}
       <View style={[styles.playerRow, { backgroundColor: t.rowBg }]}>
-        <View style={[styles.nameCol, { backgroundColor: t.nameBg }]}>
-          <Text style={[styles.playerName, { color: t.nameText }]} numberOfLines={1}>
-            {p1Name ?? 'P1'}
-          </Text>
-        </View>
+        <NameCell
+          name={p1Name}
+          onPress={onPressP1}
+          rowBg={t.rowBg}
+          nameText={t.nameText}
+          namePlaceholder={t.namePlaceholder}
+        />
         {sets.map((s, i) => {
           const won = setWinner(s) === 'p1';
           return (
             <ScoreCell
               key={i}
               value={s.p1}
-              onChange={v => update(i, 'p1', v)}
+              onChange={(v: number) => update(i, 'p1', v)}
               cellBg={won ? t.activeCellBg : t.cellBg}
               cellText={won ? t.activeCellText : t.cellText}
             />
           );
         })}
-        {sets.length < maxSets && <View style={styles.addSetBtn} />}
+        <View style={styles.addSetBtn} />
       </View>
 
       {/* Divider */}
-      <View style={[styles.divider, { backgroundColor: t.border }]} />
+      <View style={[styles.divider, { backgroundColor: t.divider }]} />
 
       {/* P2 row */}
       <View style={[styles.playerRow, { backgroundColor: t.rowBgAlt }]}>
-        <View style={[styles.nameCol, { backgroundColor: t.rowBgAlt }]}>
-          <Text style={[styles.playerName, { color: t.nameText }]} numberOfLines={1}>
-            {p2Name ?? 'P2'}
-          </Text>
-        </View>
+        <NameCell
+          name={p2Name}
+          onPress={onPressP2}
+          rowBg={t.rowBgAlt}
+          nameText={t.nameText}
+          namePlaceholder={t.namePlaceholder}
+        />
         {sets.map((s, i) => {
           const won = setWinner(s) === 'p2';
           return (
             <ScoreCell
               key={i}
               value={s.p2}
-              onChange={v => update(i, 'p2', v)}
+              onChange={(v: number) => update(i, 'p2', v)}
               cellBg={won ? t.activeCellBg : t.cellBg}
               cellText={won ? t.activeCellText : t.cellText}
             />
           );
         })}
-        {sets.length < maxSets && <View style={styles.addSetBtn} />}
+        <View style={styles.addSetBtn} />
       </View>
     </View>
   );
@@ -212,14 +246,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
   },
-
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.xs,
   },
-
   playerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -227,16 +259,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xs,
     gap: Spacing.xs,
   },
-
-  divider: {
-    height: 1,
-  },
-
+  divider: { height: 1 },
   nameCol: {
     flex: 1,
     paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.sm + 2,
     justifyContent: 'center',
+    minHeight: 48,
   },
   playerName: {
     fontSize: Font.sm,
@@ -244,7 +273,16 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
-
+  namePlaceholderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  namePlaceholderText: {
+    fontSize: Font.xs,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
   setHeaderCell: {
     width: 52,
     alignItems: 'center',
@@ -259,11 +297,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
-  removeX: {
-    fontSize: 9,
-    fontWeight: '700',
-  },
-
+  removeX: { fontSize: 9, fontWeight: '700' },
   cell: {
     width: 52,
     height: 44,
@@ -271,7 +305,6 @@ const styles = StyleSheet.create({
     fontSize: Font.xl,
     fontWeight: '900',
   },
-
   addSetBtn: {
     width: 36,
     alignItems: 'center',

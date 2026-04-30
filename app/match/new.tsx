@@ -5,12 +5,11 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Radius, Font } from '../../constants/theme';
 import { useMatchStore } from '../../stores/useMatchStore';
 import { useProfileStore } from '../../stores/useProfileStore';
 import { SetScoreInput } from '../../components/SetScoreInput';
-import { SurfaceCard, getSurfaceTheme } from '../../components/SurfaceCard';
+import { SurfaceCard } from '../../components/SurfaceCard';
 import { Surface, MatchSet, Profile } from '../../constants/types';
 
 type Mode = 'singles' | 'doubles';
@@ -62,7 +61,6 @@ export default function NewMatchScreen() {
 
   const winnerId = p1Id && p2Id ? determineWinner(sets, p1Id, p2Id) : null;
   const canSave = p1Id && p2Id && p1Id !== p2Id && sets.some(s => s.p1 > 0 || s.p2 > 0);
-  const theme = getSurfaceTheme(surface);
 
   const handlePickProfile = (profile: Profile) => {
     if (pickerFor === 'p1') setP1Id(profile.id);
@@ -116,22 +114,6 @@ export default function NewMatchScreen() {
         </View>
       </View>
 
-      {/* Players */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Jogadores</Text>
-        <PlayerSlot
-          label="Você"
-          profile={p1}
-          onPress={() => setPickerFor('p1')}
-        />
-        <Text style={styles.vs}>VS</Text>
-        <PlayerSlot
-          label="Adversário"
-          profile={p2}
-          onPress={() => setPickerFor('p2')}
-        />
-      </View>
-
       {/* Surface */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Superfície</Text>
@@ -158,6 +140,8 @@ export default function NewMatchScreen() {
           surface={surface}
           p1Name={p1?.name}
           p2Name={p2?.name}
+          onPressP1={() => setPickerFor('p1')}
+          onPressP2={() => setPickerFor('p2')}
         />
         {winnerId && (
           <View style={styles.winnerBanner}>
@@ -258,38 +242,6 @@ export default function NewMatchScreen() {
         onPick={handlePickProfile}
       />
     </ScrollView>
-  );
-}
-
-// ============== Player slot ==============
-
-function PlayerSlot({
-  label, profile, onPress,
-}: { label: string; profile?: Profile; onPress: () => void }) {
-  return (
-    <TouchableOpacity style={styles.slot} onPress={onPress}>
-      {profile ? (
-        profile.avatarUrl ? (
-          <Image source={{ uri: profile.avatarUrl }} style={styles.slotAvatar} />
-        ) : (
-          <View style={[styles.slotAvatar, { backgroundColor: profile.avatarColor ?? Colors.accent, alignItems: 'center', justifyContent: 'center' }]}>
-            <Text style={styles.slotAvatarText}>{profile.name[0]?.toUpperCase()}</Text>
-          </View>
-        )
-      ) : (
-        <View style={[styles.slotAvatar, styles.slotAvatarEmpty]}>
-          <Ionicons name="person-add" size={22} color={Colors.textSecondary} />
-        </View>
-      )}
-      <View style={{ flex: 1 }}>
-        <Text style={styles.slotLabel}>{label}</Text>
-        <Text style={styles.slotName} numberOfLines={1}>
-          {profile?.name ?? 'Selecionar jogador'}
-        </Text>
-        {profile?.handle && <Text style={styles.slotHandle}>@{profile.handle}</Text>}
-      </View>
-      <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
-    </TouchableOpacity>
   );
 }
 
@@ -422,22 +374,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.full,
   },
   soonText: { fontSize: 9, fontWeight: '900', color: Colors.bg, letterSpacing: 0.5 },
-
-  slot: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    backgroundColor: Colors.card, borderRadius: Radius.md,
-    padding: Spacing.md,
-  },
-  slotAvatar: {
-    width: 48, height: 48, borderRadius: 24,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  slotAvatarEmpty: { backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, borderStyle: 'dashed' },
-  slotAvatarText: { fontSize: Font.xl, fontWeight: '900', color: Colors.bg },
-  slotLabel: { fontSize: Font.xs, color: Colors.textSecondary, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
-  slotName: { fontSize: Font.md, fontWeight: '800', color: Colors.text },
-  slotHandle: { fontSize: Font.xs, color: Colors.textSecondary },
-  vs: { fontSize: Font.lg, fontWeight: '900', color: Colors.textTertiary, textAlign: 'center', letterSpacing: 2 },
 
   surfaceList: { flexDirection: 'row', gap: Spacing.sm },
   surfaceItem: { flex: 1, minHeight: 76 },
