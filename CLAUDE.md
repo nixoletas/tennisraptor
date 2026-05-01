@@ -38,7 +38,7 @@ Expo SDK 52 + React Native 0.76 + expo-router v4 (file-based routing, typed rout
 Route groups:
 - `(tabs)/` — main bottom-tab UI (home, players, tournaments, history, profile)
 - `auth/` — login / signup / forgot / OAuth callback
-- `match/` — `new` (modal), `live` (no back), `[id]` detail
+- `match/` — `new` (modal), `[id]` detail
 - `tournament/` — `new` (modal), `[id]` detail
 - `player/[id]` — player detail
 - `onboarding.tsx` — gated, no back gesture
@@ -63,7 +63,7 @@ Three Zustand stores act as in-memory caches over Supabase tables. Hydration run
 
 IDs are generated client-side with `Crypto.randomUUID()` from `expo-crypto` (see `lib/db.ts:newId`) so optimistic local state can use the same UUID that gets inserted.
 
-- `useMatchStore` — match log + a single in-progress `liveMatch` (transient, client-only — only persisted to DB on `finishLive`). Tennis scoring rules (set-done, tiebreak trigger at 6-6, best-of-3 / best-of-5 / pro-set, 7-point tiebreak with win-by-2) are encoded in `awardGame` / `awardTiebreakPoint`.
+- `useMatchStore` — matches loaded from Supabase; `logMatch`, approvals (`approveMatch` / `rejectMatch`), deletes/updates, and helpers (`getPendingForMe`, `getPlayerMatches`, `getPlayerStats`).
 - `usePlayerStore` — players + `myPlayerId` (the user's own profile player, `isMe: true`; DB has a partial unique index enforcing one `is_me` row per owner). `setupMe(userId, name, handle)` upserts the me-player. `getH2H(p1, p2, matches)` takes matches as an arg to avoid cross-store coupling — pass `useMatchStore.getState().matches`.
 - `useTournamentStore` — tournaments + groups. Membership lives in `tournament_players` / `group_members` junction tables; `loadAll` fans out and reconstructs the denormalized `playerIds` / `memberIds` arrays. `getStandings` / `getGroupStandings` take `allMatches` for the same reason; sort order is points → set diff → game diff (3 pts per win, no draws).
 
@@ -77,7 +77,7 @@ Single migration `0001_init.sql` defines: `profiles` (1:1 with `auth.users`, aut
 
 ### Types and theme
 
-`constants/types.ts` is the single source of truth for domain types (`Match`, `Player`, `Tournament`, `LiveMatchState`, etc.). `constants/theme.ts` exports `Colors`, `Spacing`, `Radius`, `Font`, and `SurfaceColors` (per-surface accent). Use these instead of hardcoding hex / numbers.
+`constants/types.ts` is the single source of truth for domain types (`Match`, `Player`, `Tournament`, etc.). `constants/theme.ts` exports `Colors`, `Spacing`, `Radius`, `Font`, and `SurfaceColors` (per-surface accent). Use these instead of hardcoding hex / numbers.
 
 ### Path alias
 

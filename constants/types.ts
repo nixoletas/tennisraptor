@@ -111,26 +111,3 @@ export interface Post {
   comments: PostComment[];
 }
 
-// Live match tracking state — client-only, not persisted to DB until match ends.
-export interface LiveMatchState {
-  matchId: string;
-  player1Id: string;
-  player2Id: string;
-  surface: Surface;
-  format: MatchFormat;
-  sets: MatchSet[];
-  currentSet: number;
-  p1CurrentGames: number;
-  p2CurrentGames: number;
-  p1Points: number;
-  p2Points: number;
-  isDeuce: boolean;
-  p1Adv: boolean;
-  p2Adv: boolean;
-  isTiebreak: boolean;
-  p1TiebreakPoints: number;
-  p2TiebreakPoints: number;
-  isComplete: boolean;
-  winnerId: string | null;
-  startedAt: string;
-}

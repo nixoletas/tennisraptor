@@ -2,15 +2,8 @@ import React, { useState } from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/theme';
-import { useMatchStore } from '../../stores/useMatchStore';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { TouchableOpacity, StyleSheet } from 'react-native';
 import { DrawerMenu } from '../../components/DrawerMenu';
-
-function LiveIndicator() {
-  const live = useMatchStore(s => s.liveMatch);
-  if (!live) return null;
-  return <View style={styles.liveDot} />;
-}
 
 export default function TabLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -46,12 +39,7 @@ export default function TabLayout() {
           options={{
             title: 'Início',
             tabBarLabel: 'Início',
-            tabBarIcon: ({ color, size }) => (
-              <View>
-                <Ionicons name="home" size={size} color={color} />
-                <LiveIndicator />
-              </View>
-            ),
+            tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
             headerTitle: 'TennisRaptor',
             headerTitleStyle: { fontWeight: '900', fontSize: 20, letterSpacing: -0.5 },
           }}
@@ -80,15 +68,6 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
-  liveDot: {
-    position: 'absolute',
-    top: -2,
-    right: -4,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.red,
-  },
   hamburger: {
     paddingHorizontal: 16,
     paddingVertical: 8,

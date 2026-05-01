@@ -12,7 +12,7 @@ import { PostCard } from '../../components/PostCard';
 import { Profile, ReactionEmoji } from '../../constants/types';
 
 export default function HomeScreen() {
-  const { matches, liveMatch } = useMatchStore();
+  const matches = useMatchStore(s => s.matches);
   const me = useProfileStore(s => s.me);
   const nearby = useProfileStore(s => s.nearby);
   const posts = usePostStore(s => s.posts);
@@ -78,22 +78,7 @@ export default function HomeScreen() {
       }
     >
       <LinearGradient colors={['#1A2400', '#0D0D0D']} style={styles.hero}>
-        <View>
-          <Text style={styles.greeting}>Bom jogo,</Text>
-          <Text style={styles.heroName}>{me?.name ?? 'Jogador'}</Text>
-        </View>
       </LinearGradient>
-
-      {liveMatch && (
-        <TouchableOpacity
-          style={styles.liveBanner}
-          onPress={() => router.push('/match/live')}
-        >
-          <View style={styles.liveDot} />
-          <Text style={styles.liveText}>PARTIDA AO VIVO</Text>
-          <Ionicons name="chevron-forward" size={16} color={Colors.red} />
-        </TouchableOpacity>
-      )}
 
       {pendingCount > 0 && (
         <TouchableOpacity
@@ -109,17 +94,17 @@ export default function HomeScreen() {
       )}
 
       <View style={styles.actions}>
-        <TouchableOpacity style={[styles.actionBtn, styles.actionPrimary]} onPress={() => router.push('/match/live')}>
-          <Ionicons name="radio-button-on" size={20} color={Colors.bg} />
-          <Text style={[styles.actionLabel, styles.actionLabelPrimary]}>Jogar Agora</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/match/new')}>
-          <Ionicons name="add-circle-outline" size={20} color={Colors.text} />
-          <Text style={styles.actionLabel}>Registrar</Text>
+        <TouchableOpacity style={[styles.actionBtn, styles.actionPrimary]} onPress={() => router.push('/match/new')}>
+          <Ionicons name="add-circle-outline" size={20} color={Colors.bg} />
+          <Text style={[styles.actionLabel, styles.actionLabelPrimary]}>Registrar</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/players')}>
           <Ionicons name="people-outline" size={20} color={Colors.text} />
           <Text style={styles.actionLabel}>Adversários</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/history')}>
+          <Ionicons name="time-outline" size={20} color={Colors.text} />
+          <Text style={styles.actionLabel}>Histórico</Text>
         </TouchableOpacity>
       </View>
 
@@ -171,15 +156,6 @@ const styles = StyleSheet.create({
   },
   greeting: { fontSize: Font.sm, color: Colors.textSecondary, fontWeight: '500' },
   heroName: { fontSize: Font.xxl, fontWeight: '900', color: Colors.text, letterSpacing: -0.5 },
-
-  liveBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: Colors.red + '20', borderRadius: Radius.md,
-    marginHorizontal: Spacing.md, padding: Spacing.md,
-    borderWidth: 1, borderColor: Colors.red + '40',
-  },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.red },
-  liveText: { flex: 1, color: Colors.red, fontWeight: '800', fontSize: Font.sm, letterSpacing: 1 },
 
   pendingBanner: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,

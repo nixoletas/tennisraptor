@@ -12,7 +12,7 @@ const SURFACES: (Surface | 'all')[] = ['all', 'clay', 'hard', 'grass'];
 const LABELS: Record<string, string> = { all: 'Todas', ...SURFACE_LABELS };
 
 export default function HistoryScreen() {
-  const { matches, liveMatch } = useMatchStore();
+  const matches = useMatchStore(s => s.matches);
   const me = useProfileStore(s => s.me);
   const nearby = useProfileStore(s => s.nearby);
   const [surface, setSurface] = useState<Surface | 'all'>('all');
@@ -34,13 +34,6 @@ export default function HistoryScreen() {
 
   return (
     <View style={styles.container}>
-      {liveMatch && (
-        <TouchableOpacity style={styles.liveBanner} onPress={() => router.push('/match/live')}>
-          <View style={styles.liveDot} />
-          <Text style={styles.liveText}>PARTIDA EM ANDAMENTO — TOQUE PARA VER</Text>
-        </TouchableOpacity>
-      )}
-
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -97,13 +90,6 @@ export default function HistoryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  liveBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: Colors.red + '20', padding: Spacing.md,
-    borderBottomWidth: 1, borderBottomColor: Colors.red + '30',
-  },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.red },
-  liveText: { color: Colors.red, fontWeight: '800', fontSize: Font.xs, letterSpacing: 1, flex: 1 },
   filters: {
     flexDirection: 'row', gap: Spacing.xs, paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,

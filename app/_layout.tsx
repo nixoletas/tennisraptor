@@ -85,7 +85,6 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="auth" options={{ headerShown: false }} />
             <Stack.Screen name="match/new" options={{ title: 'Registrar Partida', presentation: 'modal' }} />
-            <Stack.Screen name="match/live" options={{ title: 'Ao Vivo', headerBackVisible: false }} />
             <Stack.Screen name="match/[id]" options={{ title: 'Partida' }} />
             <Stack.Screen name="player/[id]" options={{ title: 'Jogador' }} />
             <Stack.Screen name="post/[id]" options={{ title: 'Post' }} />

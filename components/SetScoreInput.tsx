@@ -35,7 +35,7 @@ const SCOREBOARD_THEMES: Record<Surface, {
     boardBg: '#214732',
     rowBg: '#214732',
     rowBgAlt: '#214732',
-    nameBg: '#214732',
+    namePlaceholder: '#FFFFFF99',
     nameText: '#FFFFFF',
     cellBg: '#214732',
     cellText: '#669470',
@@ -45,13 +45,14 @@ const SCOREBOARD_THEMES: Record<Surface, {
     headerText: '#FFFFFF',
     addBtnColor: '#FFFFFF',
     border: '#214732',
+    divider: '#1a3d28',
   },
   // Wimbledon: verde escuro + roxo, células brancas (look icônico)
   grass: {
     boardBg: '#0D1F0D',
     rowBg: '#122112',
     rowBgAlt: '#183018',
-    nameBg: '#122112',
+    namePlaceholder: '#FFFFFF99',
     nameText: '#FFFFFF',
     cellBg: '#122112',
     cellText: '#FFFFFF',
@@ -61,13 +62,14 @@ const SCOREBOARD_THEMES: Record<Surface, {
     headerText: '#A5D6A7',
     addBtnColor: '#FFFFFF',
     border: '#4A148C40',
+    divider: '#0A160A',
   },
   // US Open / ATP: azul marinho, células cinza-azuladas
   hard: {
     boardBg: '#080F2A',
     rowBg: '#0D1B4B',
     rowBgAlt: '#112060',
-    nameBg: '#0D1B4B',
+    namePlaceholder: '#FFFFFF99',
     nameText: '#FFFFFF',
     cellBg: '#1E2F6A',
     cellText: '#FFFFFF',
@@ -77,6 +79,7 @@ const SCOREBOARD_THEMES: Record<Surface, {
     headerText: '#4FC3F7',
     addBtnColor: '#4FC3F7',
     border: '#4FC3F740',
+    divider: '#060C1F',
   },
 };
 
