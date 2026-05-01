@@ -178,8 +178,9 @@ export function profilePatchToRow(patch: Partial<Profile>): Record<string, unkno
   if (patch.similarProId !== undefined) r.similar_pro_id = patch.similarProId ?? null;
   if (patch.regionState !== undefined) r.region_state = patch.regionState ?? null;
   if (patch.regionCity !== undefined) r.region_city = patch.regionCity ?? null;
-  if (patch.instagramUrl !== undefined) r.instagram_url = patch.instagramUrl ?? null;
-  if (patch.linkedinUrl !== undefined) r.linkedin_url = patch.linkedinUrl ?? null;
+  // Permite limpar com `instagramUrl: undefined` quando a chave veio no patch (ex.: modal redes sociais).
+  if ('instagramUrl' in patch) r.instagram_url = patch.instagramUrl ?? null;
+  if ('linkedinUrl' in patch) r.linkedin_url = patch.linkedinUrl ?? null;
   if (patch.onboardingCompleted !== undefined) r.onboarding_completed = patch.onboardingCompleted;
   return r;
 }

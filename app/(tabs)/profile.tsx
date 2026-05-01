@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Modal, Alert, Image, Linking,
 } from 'react-native';
@@ -140,13 +140,13 @@ export default function ProfileScreen() {
           <SocialRow
             icon="logo-instagram"
             label="Instagram"
-            value={me.instagramUrl}
+            value={formatSocialDisplay(me.instagramUrl, 'instagram')}
             onPress={() => openLink(me.instagramUrl)}
           />
           <SocialRow
             icon="logo-linkedin"
             label="LinkedIn"
-            value={me.linkedinUrl}
+            value={formatSocialDisplay(me.linkedinUrl, 'linkedin')}
             onPress={() => openLink(me.linkedinUrl)}
           />
         </View>
@@ -161,10 +161,6 @@ export default function ProfileScreen() {
             <Text style={styles.accountEmail}>{user.email}</Text>
           </View>
         )}
-        <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
-          <Ionicons name="log-out-outline" size={18} color={Colors.red} />
-          <Text style={styles.signOutText}>Sair da conta</Text>
-        </TouchableOpacity>
       </View>
 
       <View style={{ height: Spacing.xl }} />
@@ -203,6 +199,60 @@ function formatBirth(s: string): string {
   if (!m) return s;
   const [_, y, mo, d] = m;
   return `${d}/${mo}/${y}`;
+}
+
+/** Extrai handle salvo como URL completa ou só o username legado. */
+function instagramHandleFromStored(raw?: string): string {
+  if (!raw?.trim()) return '';
+  const s = raw.trim().replace(/^@/, '');
+  if (!/^https?:\/\//i.test(s) && !s.includes('instagram.com')) {
+    return s.split('/')[0] ?? '';
+  }
+  try {
+    const url = new URL(s.startsWith('http') ? s : `https://${s}`);
+    const host = url.hostname.replace(/^www\./i, '');
+    if (host === 'instagram.com' || host.endsWith('.instagram.com')) {
+      const seg = url.pathname.split('/').filter(Boolean)[0];
+      return seg?.replace(/^@/, '') ?? '';
+    }
+  } catch { /* empty */ }
+  return s.replace(/^.*instagram\.com\//i, '').split(/[/?#]/)[0] ?? '';
+}
+
+function linkedinSlugFromStored(raw?: string): string {
+  if (!raw?.trim()) return '';
+  const s = raw.trim().replace(/^@/, '');
+  if (!/^https?:\/\//i.test(s) && !s.includes('linkedin.com')) {
+    return s.split('/').pop() ?? s;
+  }
+  try {
+    const url = new URL(s.startsWith('http') ? s : `https://${s}`);
+    const parts = url.pathname.split('/').filter(Boolean);
+    const i = parts.indexOf('in');
+    if (i >= 0 && parts[i + 1]) return decodeURIComponent(parts[i + 1]);
+  } catch { /* empty */ }
+  const m = s.match(/linkedin\.com\/in\/([^/?#]+)/i);
+  return m ? decodeURIComponent(m[1]) : s;
+}
+
+function buildInstagramUrl(handle: string): string | undefined {
+  const u = handle.trim().replace(/^@/, '').replace(/[^a-zA-Z0-9._]/g, '');
+  if (!u) return undefined;
+  return `https://www.instagram.com/${u}/`;
+}
+
+function buildLinkedInUrl(slug: string): string | undefined {
+  let s = slug.trim().replace(/^@/, '');
+  if (!s) return undefined;
+  if (/linkedin\.com/i.test(s)) s = linkedinSlugFromStored(s);
+  if (!s) return undefined;
+  return `https://www.linkedin.com/in/${encodeURIComponent(s)}/`;
+}
+
+function formatSocialDisplay(raw: string | undefined, network: 'instagram' | 'linkedin'): string | undefined {
+  if (!raw?.trim()) return undefined;
+  const h = network === 'instagram' ? instagramHandleFromStored(raw) : linkedinSlugFromStored(raw);
+  return h ? `@${h}` : undefined;
 }
 
 // ===================== Subcomponents =====================
@@ -396,48 +446,58 @@ function AvatarModal({
 function SocialModal({
   visible, me, onClose, onSave,
 }: { visible: boolean; me: Profile; onClose: () => void; onSave: (p: Partial<Profile>) => Promise<void> }) {
-  const [insta, setInsta] = useState(me.instagramUrl ?? '');
-  const [linkedin, setLinkedin] = useState(me.linkedinUrl ?? '');
+  const [insta, setInsta] = useState('');
+  const [linkedin, setLinkedin] = useState('');
+
+  useEffect(() => {
+    if (!visible) return;
+    setInsta(instagramHandleFromStored(me.instagramUrl));
+    setLinkedin(linkedinSlugFromStored(me.linkedinUrl));
+  }, [visible, me.instagramUrl, me.linkedinUrl]);
+
+  const handleSubmit = () => {
+    void onSave({
+      instagramUrl: buildInstagramUrl(insta),
+      linkedinUrl: buildLinkedInUrl(linkedin),
+    });
+  };
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <View style={styles.modal}>
           <Text style={styles.modalTitle}>Redes sociais</Text>
-          <Text style={styles.modalHint}>Tênis também é networking. Adicione seus links.</Text>
+          <Text style={styles.modalHint}>Digite só o usuário (com ou sem @). O app monta o link.</Text>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Instagram</Text>
+            <Text style={styles.fieldLabel}>Instagram · instagram.com/</Text>
             <TextInput
               style={styles.input}
-              placeholder="instagram.com/seu_user"
+              placeholder="seu_usuario"
               placeholderTextColor={Colors.textTertiary}
               value={insta}
-              onChangeText={setInsta}
+              onChangeText={t => setInsta(t.replace(/^@+/, ''))}
               autoCapitalize="none"
-              keyboardType="url"
+              autoCorrect={false}
             />
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>LinkedIn</Text>
+            <Text style={styles.fieldLabel}>LinkedIn · linkedin.com/in/</Text>
             <TextInput
               style={styles.input}
-              placeholder="linkedin.com/in/seu_user"
+              placeholder="seu-usuario"
               placeholderTextColor={Colors.textTertiary}
               value={linkedin}
-              onChangeText={setLinkedin}
+              onChangeText={t => setLinkedin(t.replace(/^@+/, ''))}
               autoCapitalize="none"
-              keyboardType="url"
+              autoCorrect={false}
             />
           </View>
 
           <ModalActions
             onCancel={onClose}
-            onConfirm={() => onSave({
-              instagramUrl: insta.trim() || undefined,
-              linkedinUrl: linkedin.trim() || undefined,
-            })}
+            onConfirm={handleSubmit}
             confirmLabel="SALVAR"
           />
         </View>
